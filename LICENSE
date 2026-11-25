@@ -1,0 +1,16 @@
+MIT License — Vyra OS original files
+
+Copyright (c) 2026 VFM Studios, LLC
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of the original VFM files in this repository (scripts, configuration,
+documentation, and branding tokens authored by VFM Studios), to deal in
+them without restriction, including without limitation the rights to use,
+copy, modify, merge, publish, distribute, sublicense, and/or sell copies,
+subject to including this notice in all copies or substantial portions.
+
+This licence covers VFM-authored files only. Fedora packages, KDE Plasma,
+and all other upstream software retain their own licences — see the
+software bill of materials at release time and each package's licence.
+No proprietary application, game, firmware, or copyrighted media is
+included under this licence.
