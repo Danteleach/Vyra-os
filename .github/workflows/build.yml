@@ -49,29 +49,33 @@ jobs:
         # which the builder container mounts below.
         run: sudo podman build -t localhost/vyra-os:ci -f Containerfile .
       - name: Build Live ISO with bootc-image-builder
-        # 2026-11-25 run #3 failed here: the manifest step passed, but
-        # osbuild's rpm stage could not mount /dev into the build tree
-        # ("permission denied") and chown failed on /var/log/btmp and
-        # lastlog — the bib container did not get the mount privileges
-        # osbuild needs, even running --privileged under podman on the
-        # GitHub-hosted runner. Docker is preinstalled on the runner
-        # and is bib's documented path, so the bib step runs under
-        # docker. bib cannot read podman's image store, so the image is
-        # pushed to a throwaway local registry first and bib pulls it
-        # from there. bib runs with --network host so 127.0.0.1 inside
-        # it is the host's loopback (containers/image treats 127.0.0.1
-        # as an insecure registry). The SELinux label opt is dropped:
-        # Ubuntu runners have no SELinux.
+        # 2026-11-25 run #3 failed here under podman: the manifest step
+        # passed, but osbuild's rpm stage could not mount /dev into the
+        # build tree ("permission denied") and chown failed on
+        # /var/log/btmp and lastlog — the bib container did not get the
+        # mount privileges osbuild needs, even running --privileged
+        # under podman on the GitHub-hosted runner. Run #4 failed
+        # before bib started (docker rejected --pull=newer, fixed in
+        # run #5). Run #5 proved Docker can run bib — the bib image
+        # pulled and manifest generation started — but bib then failed
+        # with "could not access container storage, did you forget -v
+        # /var/lib/containers/storage:/var/lib/containers/storage?"
+        # bib reads its input image from container storage, and under
+        # Docker there is none mounted. Fix: this job already builds
+        # the image with rootful podman above, so it sits in
+        # /var/lib/containers/storage on this same runner — mount that
+        # directory into the bib container and point bib at the image
+        # by its podman name. No local registry is needed anymore.
+        # The SELinux label opt is dropped: Ubuntu runners have no
+        # SELinux.
         run: |
           mkdir -p artifacts
-          docker run -d --name vyra-registry -p 5000:5000 registry:2
-          for i in $(seq 1 30); do curl -fsS http://127.0.0.1:5000/v2/ >/dev/null 2>&1 && break; sleep 1; done
-          sudo podman push --tls-verify=false localhost/vyra-os:ci 127.0.0.1:5000/vyra-os:ci
-          docker run --rm --privileged --pull=missing --network host \
+          docker run --rm --privileged --pull=missing \
+            -v /var/lib/containers/storage:/var/lib/containers/storage \
             -v "$PWD/artifacts:/output" \
             -v "$PWD/config/bootc-image-builder.toml:/config.toml:ro" \
             quay.io/centos-bootc/bootc-image-builder:latest \
-            --type iso --rootfs btrfs --config /config.toml 127.0.0.1:5000/vyra-os:ci
+            --type iso --rootfs btrfs --config /config.toml localhost/vyra-os:ci
       - name: Upload ISO
         uses: actions/upload-artifact@v4
         with:
