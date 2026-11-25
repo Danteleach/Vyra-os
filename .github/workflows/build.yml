@@ -49,6 +49,11 @@ jobs:
         # which the builder container mounts below.
         run: sudo podman build -t localhost/vyra-os:ci -f Containerfile .
       - name: Build Live ISO with bootc-image-builder
+        # 2026-11-25 run #2 failed here in 9s at manifest generation:
+        # "no default root filesystem type specified in container, please
+        #  use '--rootfs' to set manually". The image declares no default
+        # rootfs, so bib needs it on the command line. btrfs matches the
+        # Vyra directive (Btrfs) and the btrfs-progs shipped in the image.
         run: |
           mkdir -p artifacts
           sudo podman run --rm --privileged --pull=newer \
@@ -57,7 +62,7 @@ jobs:
             -v "$PWD/config/bootc-image-builder.toml:/config.toml:ro" \
             -v /var/lib/containers/storage:/var/lib/containers/storage \
             quay.io/centos-bootc/bootc-image-builder:latest \
-            --type iso --config /config.toml localhost/vyra-os:ci
+            --type iso --rootfs btrfs --config /config.toml localhost/vyra-os:ci
       - name: Upload ISO
         uses: actions/upload-artifact@v4
         with:
