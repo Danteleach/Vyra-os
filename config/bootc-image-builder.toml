@@ -1,0 +1,15 @@
+# bootc-image-builder config — Phase 1/2 gate, NOT yet run successfully.
+# Use with: ./scripts/build-iso.sh
+# Reference: https://osbuild.org/docs/developer-guide/projects/image-builder/advanced/bootc/isos/
+# This config produces a Live ISO (anaconda installer) from the built
+# localhost/vyra-os:0.1.0-dev container image. It does NOT partition,
+# format, or install anything on the build host — the builder runs in a
+# container and writes only to ./artifacts/.
+[[customizations.user]]
+name = "vfm"
+groups = ["wheel"]
+
+[customizations.installer]
+# Keep the installer in its default safe state for Phase 1.
+# Disk selection / encryption / LUKS2 choices are Phase 7 work and must
+# require explicit user confirmation at install time.
