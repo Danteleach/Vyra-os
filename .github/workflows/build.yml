@@ -8,7 +8,15 @@ on:
 
 jobs:
   container-build:
-    runs-on: ubuntu-latest
+    # Build the Vyra OS bootc image and push it to GHCR. The ISO job pulls
+    # it from there — this is the canonical pattern (ublue-os/image-template,
+    # AeroCore-OS, fp-os, Aurora-LTS, Margine): the image-builder action
+    # runs against a registry image, never a locally-built one, and never
+    # under Docker (bootc-image-builder is Podman-only).
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+      packages: write
     steps:
       - uses: actions/checkout@v4
       - name: Install Podman
@@ -25,65 +33,68 @@ jobs:
           touch certs/hatch-egress-ca.crt
       - name: Build development image
         run: podman build -t localhost/vyra-os:ci -f Containerfile .
+      - name: Push image to GHCR
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | podman login ghcr.io -u ${{ github.actor }} --password-stdin
+          podman push localhost/vyra-os:ci ghcr.io/danteleach/vyra-os:ci
 
   iso-build:
-    # Live ISO (anaconda installer) from the same image, via
-    # bootc-image-builder. Runs on GitHub's runner because the sandbox VM
-    # cannot run privileged containers (bib requires them) and has no loop
-    # devices. The ISO is uploaded as a build artifact — nothing is
-    # published or installed anywhere by this job.
-    runs-on: ubuntu-latest
+    # Live ISO (anaconda installer) from the GHCR image, via the official
+    # osbuild/bootc-image-builder-action. Runs on GitHub's runner because
+    # the sandbox VM cannot run privileged containers (bib requires them)
+    # and has no loop devices. The ISO is uploaded as a build artifact —
+    # nothing is published or installed anywhere by this job.
+    #
+    # History: runs #1–#6 (2026-11-25) ran bib by hand (podman, then
+    # Docker, with a local registry, then with podman storage mounted)
+    # and failed every time — manifest/rootfs errors, a --pull typo, a
+    # missing container-storage mount, and an osbuild mount denial.
+    # Research (2026-11-25) found no project doing it the hand-rolled
+    # way: every working project uses this action on pinned ubuntu-24.04
+    # with the image pulled from GHCR. Two warnings from that research:
+    # anaconda-iso is deprecated upstream (prefer bootc-generic-iso or a
+    # Titanoboa live ISO) and quay.io/centos-bootc/bootc-image-builder:latest
+    # has been frozen since 2026-06-18, before Fedora 45 GA — if this run
+    # fails the same way, the next step is the qcow2 diagnostic (see
+    # docs/PHASE_2_REPORT_2026-11-24.md), not another flag tweak.
+    runs-on: ubuntu-24.04
+    needs: container-build
     timeout-minutes: 90
+    permissions:
+      contents: read
+      packages: read
     steps:
-      - uses: actions/checkout@v4
-      - name: Install Podman
+      - name: Prepare environment
         run: |
-          sudo apt-get update
-          sudo apt-get install -y podman
-      - name: Placeholder CA file
-        run: |
-          mkdir -p certs
-          touch certs/hatch-egress-ca.crt
-      - name: Build development image
-        # Rootful podman so the image lands in /var/lib/containers/storage,
-        # which the builder container mounts below.
-        run: sudo podman build -t localhost/vyra-os:ci -f Containerfile .
-      - name: Build Live ISO with bootc-image-builder
-        # 2026-11-25 run #3 failed here under podman: the manifest step
-        # passed, but osbuild's rpm stage could not mount /dev into the
-        # build tree ("permission denied") and chown failed on
-        # /var/log/btmp and lastlog — the bib container did not get the
-        # mount privileges osbuild needs, even running --privileged
-        # under podman on the GitHub-hosted runner. Run #4 failed
-        # before bib started (docker rejected --pull=newer, fixed in
-        # run #5). Run #5 proved Docker can run bib — the bib image
-        # pulled and manifest generation started — but bib then failed
-        # with "could not access container storage, did you forget -v
-        # /var/lib/containers/storage:/var/lib/containers/storage?"
-        # bib reads its input image from container storage, and under
-        # Docker there is none mounted. Fix: this job already builds
-        # the image with rootful podman above, so it sits in
-        # /var/lib/containers/storage on this same runner — mount that
-        # directory into the bib container and point bib at the image
-        # by its podman name. No local registry is needed anymore.
-        # The SELinux label opt is dropped: Ubuntu runners have no
-        # SELinux.
-        run: |
-          mkdir -p artifacts
-          docker run --rm --privileged --pull=missing \
-            -v /var/lib/containers/storage:/var/lib/containers/storage \
-            -v "$PWD/artifacts:/output" \
-            -v "$PWD/config/bootc-image-builder.toml:/config.toml:ro" \
-            quay.io/centos-bootc/bootc-image-builder:latest \
-            --type iso --rootfs btrfs --config /config.toml localhost/vyra-os:ci
-      - name: Upload ISO
-        uses: actions/upload-artifact@v4
+          echo "USER_UID=$(id -u)" >> "$GITHUB_ENV"
+          echo "USER_GID=$(id -g)" >> "$GITHUB_ENV"
+      - name: Maximize build space
+        uses: ublue-os/remove-unwanted-software@cc0becac701cf642c8f0a6613bbdaf5dc36b259e # v9
         with:
-          name: vyra-os-0.1.0-dev-iso
-          path: artifacts/*.iso
-          if-no-files-found: error
-          # The ISO is ~5-7 GB; GitHub Free includes only 500 MB of artifact
-          # storage on private repos (public repos are free). A 7-day
-          # retention keeps the storage cost to pennies and stops old ISOs
-          # piling up. Download the ISO promptly after the run finishes.
-          retention-days: 7
+          remove-codeql: true
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Check free disk
+        run: df -h
+      # BIB #446 workaround: a Podman store created by another Podman
+      # invocation can mismatch the storage driver the builder expects.
+      # Resetting it is harmless on a fresh runner; the action pulls the
+      # image from GHCR anyway.
+      - name: Reset podman storage
+        run: |
+          sudo rm -rf /var/lib/containers/storage
+          sudo mkdir -p /etc/containers
+          printf '[storage]\ndriver = "overlay"\nrunroot = "/run/containers/storage"\ngraphroot = "/var/lib/containers/storage"\n' \
+            | sudo tee /etc/containers/storage.conf
+      - name: Build disk images
+        id: build
+        uses: osbuild/bootc-image-builder-action@30960621b85c9e76c653082f9ef4cab5a10210d5 # main
+        with:
+          builder-image: quay.io/centos-bootc/bootc-image-builder:latest
+          config-file: ./config/bootc-image-builder.toml
+          image: ghcr.io/danteleach/vyra-os:ci
+          chown: ${{ env.USER_UID }}:${{ env.USER_GID }}
+          types: anaconda-iso
+          rootfs: btrfs
+          additional-args: --use-librepo=True
+      - name: Check free disk after build
