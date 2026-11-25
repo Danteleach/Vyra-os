@@ -1,0 +1,71 @@
+name: Vyra Foundation Build
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  container-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Podman
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y podman
+      - name: Placeholder CA file
+        # The Containerfile bind-mounts certs/hatch-egress-ca.crt in each dnf
+        # RUN. On the sandbox VM that file holds the real egress CA; on CI it
+        # must exist but stay EMPTY, so scripts/sandbox-ca.sh skips trusting
+        # it and dnf just works (no MITM proxy on GitHub runners).
+        run: |
+          mkdir -p certs
+          touch certs/hatch-egress-ca.crt
+      - name: Build development image
+        run: podman build -t localhost/vyra-os:ci -f Containerfile .
+
+  iso-build:
+    # Live ISO (anaconda installer) from the same image, via
+    # bootc-image-builder. Runs on GitHub's runner because the sandbox VM
+    # cannot run privileged containers (bib requires them) and has no loop
+    # devices. The ISO is uploaded as a build artifact — nothing is
+    # published or installed anywhere by this job.
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Podman
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y podman
+      - name: Placeholder CA file
+        run: |
+          mkdir -p certs
+          touch certs/hatch-egress-ca.crt
+      - name: Build development image
+        # Rootful podman so the image lands in /var/lib/containers/storage,
+        # which the builder container mounts below.
+        run: sudo podman build -t localhost/vyra-os:ci -f Containerfile .
+      - name: Build Live ISO with bootc-image-builder
+        run: |
+          mkdir -p artifacts
+          sudo podman run --rm --privileged --pull=newer \
+            --security-opt label=type:unconfined_t \
+            -v "$PWD/artifacts:/output" \
+            -v "$PWD/config/bootc-image-builder.toml:/config.toml:ro" \
+            -v /var/lib/containers/storage:/var/lib/containers/storage \
+            quay.io/centos-bootc/bootc-image-builder:latest \
+            --type iso --config /config.toml localhost/vyra-os:ci
+      - name: Upload ISO
+        uses: actions/upload-artifact@v4
+        with:
+          name: vyra-os-0.1.0-dev-iso
+          path: artifacts/*.iso
+          if-no-files-found: error
+          # The ISO is ~5-7 GB; GitHub Free includes only 500 MB of artifact
+          # storage on private repos (public repos are free). A 7-day
+          # retention keeps the storage cost to pennies and stops old ISOs
+          # piling up. Download the ISO promptly after the run finishes.
+          retention-days: 7
