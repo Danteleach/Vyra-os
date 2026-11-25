@@ -1,0 +1,12 @@
+artifacts/
+*.iso
+*.qcow2
+*.raw
+*.img
+.env
+*.log
+.DS_Store
+# Build-host-only TLS CA for the sandbox egress proxy. Never committed,
+# never baked into the image (bind-mounted for one RUN only, see Containerfile).
+certs/
+.vfs/
