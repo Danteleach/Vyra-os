@@ -1,0 +1,12 @@
+/* Vyra palette — Master Directive §12. Tokens only, Phase 1. */
+:root {
+  --vfm-obsidian: #050505;
+  --vfm-carbon: #0F0F0F;
+  --vfm-gold: #DCAE43;
+  --vfm-light-gold: #FFE49A;
+  --vfm-platinum: #E0E0E0;
+  --vfm-steel: #888888;
+  --vfm-font-display: "Bebas Neue", "Antonio", sans-serif;
+  --vfm-font-ui: "Inter", "Host Grotesk", sans-serif;
+  --vfm-font-mono: "JetBrains Mono", monospace;
+}
