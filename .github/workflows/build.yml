@@ -98,3 +98,16 @@ jobs:
           rootfs: btrfs
           additional-args: --use-librepo=True
       - name: Check free disk after build
+        run: df -h
+      - name: Upload ISO
+        uses: actions/upload-artifact@v4
+        with:
+          name: vyra-os-0.1.0-dev-iso
+          path: ${{ steps.build.outputs.output-directory }}
+          if-no-files-found: error
+          # The ISO is ~5-7 GB; GitHub Free includes only 500 MB of artifact
+          # storage on private repos (public repos are free). A 7-day
+          # retention keeps the storage cost to pennies and stops old ISOs
+          # piling up. Download the ISO promptly after the run finishes.
+          retention-days: 7
+          compression-level: 0
