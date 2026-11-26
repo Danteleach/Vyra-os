@@ -1,0 +1,11 @@
+# Keep build contexts small and free of host-only state.
+# Applies to every podman build in this repo (Containerfile and
+# installer/Containerfile.live).
+.git
+.vfs
+artifacts
+*.iso
+*.qcow2
+*.raw
+*.img
+*.log
