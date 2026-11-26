@@ -53,6 +53,7 @@ RUN --mount=type=bind,source=certs/hatch-egress-ca.crt,target=/tmp/hatch-egress-
     plasma-workspace \
     plasma-workspace-wayland \
     sddm \
+    sddm-breeze \
     dolphin \
     konsole \
     plasma-discover \
@@ -141,7 +142,7 @@ RUN install -d -m 0755 /usr/share/wallpapers/Vyra/contents/images \
 RUN --mount=type=bind,source=certs/hatch-egress-ca.crt,target=/tmp/hatch-egress-ca.crt,ro \
     --mount=type=bind,source=scripts/sandbox-ca.sh,target=/tmp/sandbox-ca.sh,ro \
     sh /tmp/sandbox-ca.sh trust \
-    && dnf5 install -y plymouth \
+    && dnf5 install -y plymouth plymouth-plugin-two-step plymouth-plugin-label \
     && mkdir -p /usr/share/plymouth/themes/vyra \
     && cp /usr/share/vyra/branding/batch-01/vyra.plymouth /usr/share/plymouth/themes/vyra/vyra.plymouth \
     && cp /usr/share/vyra/branding/batch-01/vyra-plymouth-logo.png /usr/share/plymouth/themes/vyra/logo.png \
