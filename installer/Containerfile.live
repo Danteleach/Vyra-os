@@ -1,0 +1,39 @@
+# Vyra OS live-ISO payload image (NOT the installed OS).
+#
+# Layers the live session + Anaconda installer onto the Vyra core image so
+# the result satisfies Titanoboa's container-native ISO contract (iso.yaml,
+# a dmsquash-live initramfs, livesys, EFI in /boot/efi). Titanoboa consumes
+# THIS image, not the plain vyra-os image — the live session IS the OS you
+# install, and the install payload is embedded in it (offline install).
+#
+# Pattern: bearyjd/bazzite-tower installer/ (payload image + nested podman
+# pull embedding the install image) and ublue-os/bluefin
+# iso_files/configure_iso_anaconda.sh (Anaconda profile + kickstart).
+# Vyra differences: stock Fedora kernel (already Fedora-signed, so no
+# kernel swap), KDE livesys session, Anaconda GTK (anaconda-live; the
+# Anaconda WebUI is a stretch goal), Anaconda profile "vyra".
+#
+# Build (privileged; the nested podman pull + dracut regen need these):
+#   sudo podman build --cap-add sys_admin --security-opt label=disable \
+#     --squash --build-arg BASE_IMAGE=ghcr.io/danteleach/vyra-os:ci \
+#     -f installer/Containerfile.live -t localhost/vyra-os-payload:ci .
+# Build context is the repo root (this file COPYs iso_files/ and
+# installer/iso.yaml); .containerignore keeps .git/artifacts out of it.
+#
+# CI-only: dnf and the nested podman pull here assume direct internet
+# (GitHub runner). Do not build this in the MITM sandbox without adding
+# the certs bind-mount CA dance from the main Containerfile.
+# Built in CI by .github/workflows/build.yml (build-live-iso job).
+ARG BASE_IMAGE=ghcr.io/danteleach/vyra-os:ci
+FROM ${BASE_IMAGE}
+ARG BASE_IMAGE
+
+COPY iso_files/configure_iso.sh /usr/local/bin/configure_iso.sh
+COPY iso_files/vyra.conf /tmp/vyra.conf
+COPY installer/iso.yaml /tmp/iso.yaml
+RUN chmod 0755 /usr/local/bin/configure_iso.sh \
+    && INSTALL_IMAGE=${BASE_IMAGE} /usr/local/bin/configure_iso.sh
+RUN rm -f /usr/local/bin/configure_iso.sh /tmp/vyra.conf /tmp/iso.yaml
+
+# The payload image is a build input for Titanoboa, not a bootable system
+# on its own: the live session it carries boots from the ISO's squashfs.
