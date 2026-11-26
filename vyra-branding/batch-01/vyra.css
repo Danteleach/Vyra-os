@@ -1,0 +1,32 @@
+/* Vyra OS installer theme — Obsidian + gold.
+ * Loaded via the Vyra Anaconda profile's custom_stylesheet.
+ * It follows the shipped anaconda-gtk.css: the sidebar and nav-box are
+ * flat @anaconda_bg_color, and .logo is the image placeholder that a
+ * product stylesheet fills. Fedora 45's Anaconda has no sidebar/topbar
+ * pixmap files to replace, so the theme is colour + logo only. */
+@define-color anaconda_bg_color #050505;
+@define-color vyra_gold #DCAE43;
+@define-color vyra_light_gold #FFE49A;
+@define-color vyra_platinum #E0E0E0;
+
+.logo-sidebar {
+    background-color: @anaconda_bg_color;
+}
+
+.logo {
+    background-image: url("file:///usr/share/anaconda/pixmaps/vyra-logo.png");
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-color: transparent;
+}
+
+.product-logo {
+    background-image: none;
+    background-color: transparent;
+}
+
+AnacondaSpokeWindow #nav-box {
+    background-color: @anaconda_bg_color;
+    color: @vyra_platinum;
+}

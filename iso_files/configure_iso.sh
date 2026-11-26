@@ -63,6 +63,15 @@ dnf install -y --allowerasing \
     grub2-efi-x64-cdboot xorriso isomd5sum plymouth
 mkdir -p /var/lib/rpm-state  # Anaconda needs this
 
+# Phase D (Batch 01) — Vyra installer branding (Obsidian + gold). Fedora 45's
+# Anaconda has no sidebar/topbar pixmaps (flat @anaconda_bg_color), so the
+# theme is the wordmark logo + custom stylesheet, pointed at by the Vyra
+# profile (vyra.conf [User Interface]). Sources are the Batch 01 pack files
+# inherited from the core image's /usr/share/vyra/branding/ tree.
+cp /usr/share/vyra/branding/batch-01/vyra-plymouth-logo.png /usr/share/anaconda/pixmaps/vyra-logo.png
+mkdir -p /usr/share/anaconda/pixmaps/vyra
+cp /usr/share/vyra/branding/batch-01/vyra.css /usr/share/anaconda/pixmaps/vyra/vyra.css
+
 # Anaconda profile "vyra" (Bluefin pattern). The Vyra image keeps the
 # Fedora os-release ID, so the profile matches on os_id=fedora; if the
 # core image ever sets ID=vyra, change os_id in iso_files/vyra.conf.

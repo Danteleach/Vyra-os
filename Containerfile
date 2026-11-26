@@ -55,6 +55,7 @@ RUN --mount=type=bind,source=certs/hatch-egress-ca.crt,target=/tmp/hatch-egress-
     sddm \
     dolphin \
     konsole \
+    plasma-discover \
     && dnf5 clean all \
     && sh /tmp/sandbox-ca.sh remove
 RUN --mount=type=bind,source=certs/hatch-egress-ca.crt,target=/tmp/hatch-egress-ca.crt,ro \
@@ -132,6 +133,48 @@ RUN install -d -m 0755 /usr/share/wallpapers/Vyra/contents/images \
     && cp /usr/share/vyra/branding/xdg/kscreenlockerrc /etc/xdg/kscreenlockerrc \
     && (grep -q '^LookAndFeelPackage=' /etc/xdg/kdeglobals 2>/dev/null \
         || printf '[KDE]\nLookAndFeelPackage=org.vyra.desktop\n' >> /etc/xdg/kdeglobals)
+
+# Phase B (Batch 01) — Plymouth boot splash: Vyra two-step theme.
+# The theme + default live in the CORE image so the payload's dracut regen
+# (configure_iso.sh) embeds them in the live initramfs. The logo is the D1
+# wordmark crop (vyra-plymouth-logo.png); the theme file is vyra.plymouth.
+RUN --mount=type=bind,source=certs/hatch-egress-ca.crt,target=/tmp/hatch-egress-ca.crt,ro \
+    --mount=type=bind,source=scripts/sandbox-ca.sh,target=/tmp/sandbox-ca.sh,ro \
+    sh /tmp/sandbox-ca.sh trust \
+    && dnf5 install -y plymouth \
+    && mkdir -p /usr/share/plymouth/themes/vyra \
+    && cp /usr/share/vyra/branding/batch-01/vyra.plymouth /usr/share/plymouth/themes/vyra/vyra.plymouth \
+    && cp /usr/share/vyra/branding/batch-01/vyra-plymouth-logo.png /usr/share/plymouth/themes/vyra/logo.png \
+    && plymouth-set-default-theme vyra \
+    && dnf5 clean all \
+    && sh /tmp/sandbox-ca.sh remove
+
+# Phase C (Batch 01) — SDDM login: fork the Fedora Breeze theme as "vyra",
+# point its background at the clean D2 derivative (06 stays a mockup — it has
+# baked-in text/card), and select the theme. The background file is copied
+# to /usr/share/vyra/branding/sddm-background.png (the theme.conf.user path).
+RUN cp -r /usr/share/sddm/themes/01-breeze-fedora /usr/share/sddm/themes/vyra \
+    && sed -i 's/^Name=.*/Name=Vyra/' /usr/share/sddm/themes/vyra/metadata.desktop \
+    && cp /usr/share/vyra/branding/batch-01/vyra-sddm-background.png \
+        /usr/share/vyra/branding/sddm-background.png \
+    && cp /usr/share/vyra/branding/sddm/theme.conf.user \
+        /usr/share/sddm/themes/vyra/theme.conf.user \
+    && mkdir -p /etc/sddm.conf.d \
+    && cp /usr/share/vyra/branding/sddm/10-theme.conf /etc/sddm.conf.d/10-theme.conf
+
+# Phase D (Batch 01) — Product identity: the installer reads its product
+# name from os-release (Anaconda product.py), not from vyra.conf. Keep
+# ID=fedora and VERSION_ID=45 — the Vyra profile matches on os_id=fedora
+# and dnf's $releasever depends on VERSION_ID — only NAME/PRETTY_NAME change.
+RUN sed -i 's/^NAME=.*/NAME="Vyra OS"/; s/^PRETTY_NAME=.*/PRETTY_NAME="Vyra OS 0.1"/' /usr/lib/os-release \
+    && grep -q '^NAME="Vyra OS"' /usr/lib/os-release \
+    && grep -q '^PRETTY_NAME="Vyra OS 0.1"' /usr/lib/os-release
+
+# Phase E (Batch 01) — Discover featured list: point Editor's Choice at the
+# Vyra-hosted JSON (repo file, branch URL; re-pin to main/a tag at release).
+# The banner PNG has no plug-in in Discover; the JSON is the control.
+RUN mkdir -p /usr/share/discover \
+    && cp /usr/share/vyra/branding/discover/featuredurlrc /usr/share/discover/featuredurlrc
 
 # Hardware discovery (host-side script, also shipped in-image for first-boot use).
 COPY scripts/hardware-report.sh /usr/share/vyra/hardware-report.sh
