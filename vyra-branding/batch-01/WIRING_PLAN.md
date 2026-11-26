@@ -581,18 +581,22 @@ them. There is no hook, config key, or directory that would display
 slides 07–10 in sequence while packages install. Any plan that claims the
 slides will "play" during install is inventing a feature.
 
+**CORRECTION (2026-11-26, verified against the Fedora 45 `anaconda-gui` RPM): the pixmap mechanism below is wrong for Fedora 45.** The F45 `anaconda-gui` package's `/usr/share/anaconda/pixmaps/` contains ONLY the two password-show SVGs — there are no `sidebar-bg.png`, `sidebar-logo.png`, or `topbar-bg.png` files, and the shipped `anaconda-gtk.css` (F45, same as main) sets the sidebar and nav-box as flat `background-color: @anaconda_bg_color` (#2f4265), with `.logo` / `.product-logo` as empty placeholders (`background-image: none`). The RHEL docs' pixmap backgrounds are legacy and do not apply to Fedora 45's Anaconda. The real Phase D mechanism is therefore **CSS only**: `vyra.css` (via `custom_stylesheet`) redefines `@anaconda_bg_color` to Obsidian and sets `.logo`'s `background-image` to the Vyra wordmark PNG. Derivatives D5 (sidebar-bg) and D7 (topbar-bg) are **CANCELLED** — there is nothing to replace. D6 (wordmark) is still needed and reuses the D1 file. The target paths and build steps below are the corrected ones.
+
 ### What CAN be shown (verified)
 
-The customisable graphical elements live in
-`/usr/share/anaconda/pixmaps/` — `sidebar-bg.png`, `sidebar-logo.png`,
-`topbar-bg.png`, `right-arrow-icon.png`, the password-show icons — and
-`/usr/share/anaconda/anaconda-gtk.css` wires them to the UI
-(`.logo-sidebar` → `sidebar-bg.png`, `.logo` → `sidebar-logo.png`,
-`.product-logo` placeholder, `AnacondaSpokeWindow #nav-box` →
-`topbar-bg.png`). The RHEL docs note the PNG backgrounds "do not scale,
-they are always displayed in their true dimensions" — so derivatives must
-be produced at the pixmaps' real dimensions (measure them at
-implementation; see below), not at 1920×1080.
+The customisable graphical elements are the **stylesheet** and the
+**logo image**. The shipped `anaconda-gtk.css` (F45, verified from the
+`anaconda-gui` RPM) wires them as: `.logo-sidebar` and
+`AnacondaSpokeWindow #nav-box` use a flat `background-color:
+@anaconda_bg_color` (#2f4265); `.logo` and `.product-logo` are empty
+placeholders (`background-image: none`) meant to be filled by a
+product-specific stylesheet. The only files in
+`/usr/share/anaconda/pixmaps/` are the two password-show SVGs. So the
+branding is done by redefining `@anaconda_bg_color` and setting
+`.logo`'s `background-image` in the custom stylesheet — not by replacing
+pixmap files (the RHEL docs' pixmap backgrounds are legacy and do not
+exist in Fedora 45's Anaconda).
 
 The profile can also point at a product-specific stylesheet: the
 `[User Interface]` section of the Anaconda default configuration
@@ -627,31 +631,32 @@ image, not a `vyra.conf` line:
 
 The four slides are near-identical backgrounds whose distinction lives in
 overlaid text (batch-01 README flag) — and installer text must be
-rendered natively, never baked into images. So the slides' *art* is the
-input to PROPOSED HD derivatives at pixmap size; the slides themselves
-have no display path during install:
+rendered natively, never baked into images. The slides themselves have no
+display path during install, and (per the correction above) there are no
+sidebar/topbar pixmaps to derive. What the slides' *art* still supplies
+is the wordmark and the colour language for the CSS theme:
 
-- **PROPOSED** `sidebar-bg.png` — vertical gold-on-Obsidian band derived
-  from the slide art (crop the flowing gold linework into a vertical
-  strip; measure the shipped `sidebar-bg.png` dimensions in the payload
-  build first — TBD until measured).
-- **PROPOSED** `sidebar-logo.png` — the "Vyra OS" text wordmark as a
-  transparent PNG, cropped from the 05 splash / brand board (never a
-  re-drawn logo).
-- **PROPOSED** `topbar-bg.png` — horizontal gold band derivative from
-  the slide art.
-- **PROPOSED** `vyra.css` — a small custom stylesheet
-  (`/usr/share/anaconda/pixmaps/vyra/vyra.css`) setting the product
-  colours, e.g. `@define-color product_bg_color #050505;` with gold
-  accents, following the Fedora Workstation CSS pattern.
+- **CANCELLED** `sidebar-bg.png` / `topbar-bg.png` (D5/D7) — no such files
+  exist in Fedora 45's Anaconda; the sidebar and nav-box are flat
+  `@anaconda_bg_color`, recolored by the stylesheet.
+- **PROPOSED** `vyra-logo.png` (D6) — the "Vyra OS" text wordmark as a
+  transparent PNG. **Reuses the D1 file** (`vyra-plymouth-logo.png`,
+  260×139, already generated and verified) — no second derivative is
+  produced. It is the `.logo` background-image in `vyra.css`.
+- **PROPOSED** `vyra.css` (D8) — the custom stylesheet
+  (`/usr/share/anaconda/pixmaps/vyra/vyra.css`) that redefines
+  `@anaconda_bg_color` to Obsidian `#050505`, sets `.logo`'s
+  `background-image` to the wordmark PNG, and keeps the nav-box text
+  Platinum. It follows the structure of the shipped `anaconda-gtk.css`
+  (flat `@anaconda_bg_color` for `.logo-sidebar` and `#nav-box`,
+  `.logo` / `.product-logo` as image placeholders) — the stylesheet is
+  the branding, not pixmap replacement.
 
 **Exact target paths (payload image — the anaconda package is installed
 only there, by `configure_iso.sh`):**
 
 ```
-/usr/share/anaconda/pixmaps/sidebar-bg.png    (PROPOSED derivative, replaces file)
-/usr/share/anaconda/pixmaps/sidebar-logo.png  (PROPOSED derivative, replaces file)
-/usr/share/anaconda/pixmaps/topbar-bg.png     (PROPOSED derivative, replaces file)
+/usr/share/anaconda/pixmaps/vyra-logo.png     (PROPOSED file — copy of the D1 wordmark PNG)
 /usr/share/anaconda/pixmaps/vyra/vyra.css     (PROPOSED file)
 ```
 
@@ -666,21 +671,23 @@ custom_stylesheet = /usr/share/anaconda/pixmaps/vyra/vyra.css
 `dnf install -y anaconda-live ...` line):**
 
 ```bash
-# Vyra installer branding — replace the Anaconda GTK pixmaps with
-# derivatives of the Batch 01 slide art, and point the Vyra profile
-# at the Vyra stylesheet (vyra.conf [User Interface]).
-cp /usr/share/vyra/branding/batch-01/vyra-sidebar-bg.png   /usr/share/anaconda/pixmaps/sidebar-bg.png
-cp /usr/share/vyra/branding/batch-01/vyra-sidebar-logo.png /usr/share/anaconda/pixmaps/sidebar-logo.png
-cp /usr/share/vyra/branding/batch-01/vyra-topbar-bg.png    /usr/share/anaconda/pixmaps/topbar-bg.png
+# Vyra installer branding — Obsidian + gold Anaconda theme: wordmark logo
+# plus custom stylesheet, pointed at by the Vyra profile
+# (vyra.conf [User Interface]). The F45 Anaconda sidebar/nav are flat
+# colours, not pixmaps, so there is nothing to replace — only these two
+# files are added.
+cp /usr/share/vyra/branding/batch-01/vyra-plymouth-logo.png /usr/share/anaconda/pixmaps/vyra-logo.png
 mkdir -p /usr/share/anaconda/pixmaps/vyra
 cp /usr/share/vyra/branding/batch-01/vyra.css /usr/share/anaconda/pixmaps/vyra/vyra.css
 ```
 
-(The source filenames above are the implementer's choice; keep the
-derivatives under `vyra-branding/batch-01/` with the rest of the pack.
-The pixmap files belong to the `anaconda` RPM — replacing them at build
-time is a build-time overlay in the payload image only; it never touches
-the installed system, which comes from the embedded core image.)
+(The wordmark PNG is the D1 file, reused — no second derivative. Both
+files are additions to the payload image only; they never touch the
+installed system, which comes from the embedded core image. The
+`custom_stylesheet` override of `@anaconda_bg_color` must be verified in
+QEMU (V9): if the sidebar/nav stay Fedora blue, the override did not
+take and the stylesheet mechanism needs re-checking against the F45
+`anaconda-gtk.css`.)
 
 ### TBD — which installer UI actually runs (blocks visual verification)
 
@@ -779,9 +786,9 @@ presence of `featuredurlrc` — a partial check, not a visual pass.
 | D2 | `vyra-sddm-background.png` (3840×2160, no text, no card; from 03 or darkened 01) | 03 / 01 | `/usr/share/vyra/branding/sddm-background.png` | §3 |
 | D3 | `screenshot.png` (400×250 thumbnail) | 01b | `/usr/share/wallpapers/Vyra/contents/screenshot.png` | §4 |
 | D4 | Light 1920×1080 + 3440×1440 exports (optional) | 02 | `/usr/share/wallpapers/Vyra/contents/images/` | §4 |
-| D5 | `vyra-sidebar-bg.png` (vertical band, at shipped pixmap size — measure first) | 07–10 art | `/usr/share/anaconda/pixmaps/sidebar-bg.png` | §5 |
-| D6 | `vyra-sidebar-logo.png` (transparent wordmark) | 05 / brand board | `/usr/share/anaconda/pixmaps/sidebar-logo.png` | §5 |
-| D7 | `vyra-topbar-bg.png` (horizontal gold band, at shipped pixmap size) | 07–10 art | `/usr/share/anaconda/pixmaps/topbar-bg.png` | §5 |
+| D5 | CANCELLED — no `sidebar-bg.png` in F45 Anaconda (flat `@anaconda_bg_color`) | — | — | §5 |
+| D6 | `vyra-logo.png` (transparent wordmark — **reuses the D1 file**, no new derivative) | 05 (via D1) | `/usr/share/anaconda/pixmaps/vyra-logo.png` | §5 |
+| D7 | CANCELLED — no `topbar-bg.png` in F45 Anaconda (flat `@anaconda_bg_color`) | — | — | §5 |
 | D8 | `vyra.css` (Obsidian/gold GTK stylesheet) | — (written) | `/usr/share/anaconda/pixmaps/vyra/vyra.css` | §5 |
 
 Plus small written (not image) PROPOSED files: `vyra.plymouth`,
@@ -824,7 +831,7 @@ in exactly one place — **acquisition**, not the runtime paths:
 | T6 | Featured JSON: does `file://` work for `FeaturedListingURL`? | UNVERIFIED. Assume https until tested. |
 | T7 | Plymouth: is `two-step.so` in the `plymouth` package? Is Plymouth already in the base image at payload dracut time? | Verify at build: `rpm -q plymouth`, `rpm -ql plymouth \| grep two-step`, `lsinitrd … \| grep vyra`. |
 | T8 | SDDM theme dir name | Expected `01-breeze-fedora` (two independent sources). Confirm at build: `ls /usr/share/sddm/themes/`. |
-| T9 | Anaconda pixmap dimensions (sidebar-bg / topbar-bg / sidebar-logo) | TBD until measured in the payload build: `file /usr/share/anaconda/pixmaps/*.png`. Derivatives D5–D7 must be produced at those sizes. |
+| T9 | Anaconda pixmap dimensions | RESOLVED 2026-11-26: verified against the F45 `anaconda-gui` RPM — there are no sidebar/topbar/logo pixmaps to measure (only the two password SVGs). D5/D7 cancelled; D6 reuses the D1 file. |
 | T10 | Fonts (Bebas Neue/Antonio/Inter/JetBrains Mono) | NOT installed, NOT supplied. Native UI text falls back. Raster derivatives unaffected. Font pass is a separate supply/install task. |
 | T11 | 1080p/ultrawide light wallpaper variants | Optional PROPOSED derivatives (D4). Plugin downscales the 4K master acceptably without them. |
 | T12 | `org.vyra.desktop` look-and-feel + `LookAndFeelPackage` key | Mechanism VERIFIED (bug 477338 fixed in 6.0; stylix uses the key). Still needs the QEMU check that a fresh live user actually lands on the Vyra wallpaper. |
