@@ -1,12 +1,14 @@
 # Vyra OS foundation — development image, Phase 1 (0.1.0-dev)
-# Base pinned by tag + per-arch digest, re-verified 2026-11-25
+# Base pinned by tag + per-arch digest, re-verified 2026-11-26
 # (the 2026-11-24 pin expired: Quay rebuilt the image and the old digest
-#  went "manifest unknown", which failed the first CI run in seconds):
+#  went "manifest unknown", which failed the first CI run in seconds;
+#  the 2026-11-25 pin expired the same way 2026-11-26 and failed run #10
+#  in 30s — Quay garbage-collects unreferenced digests within ~a day):
 #   quay.io/fedora/fedora-bootc:45
-#   manifest-list digest sha256:2342f957281b061919c48a12227f9cd04f2d9825d17629fd914083aaa672002c
-#   (Quay API, last modified Wed, 25 Nov 2026 12:01:14 UTC, 4 children)
-#   amd64 child digest sha256:bf0f127b2fb2432bb48bf730406ec94fbf8943ab987cfdadca2de6d84426bbc9
-#   (from `podman manifest inspect` on the tag, verified resolving)
+#   manifest-list digest sha256:f3afa8b1d590ba2842366e0bca4f921ba4a0c7b5ee72679b632aeaa08f170a1e
+#   (Quay API, checked Thu 2026-11-26, 4 children)
+#   amd64 child digest sha256:85555c5243e31859800ba9c4b3de11d02614d3929df911a8818c720ff6e5aa3d
+#   (from the Quay registry API manifest list, verified resolving)
 # LESSON 2026-11-24: podman 4.9.3 in this environment FAILS pulling by the
 # manifest-list digest ("can't talk to a V1 container registry", exit 125),
 # but pulls the same image fine by tag, and the amd64 child digest is the
@@ -14,15 +16,15 @@
 # Re-verify digests at build time — Fedora 45 tags move with updates.
 # Fedora 46 was seen emerging 2026-11-09 in upstream renovate activity;
 # 0.1 stays on 45 for stability. Do not move to 46 without a Phase decision.
-FROM quay.io/fedora/fedora-bootc:45@sha256:bf0f127b2fb2432bb48bf730406ec94fbf8943ab987cfdadca2de6d84426bbc9
+FROM quay.io/fedora/fedora-bootc:45@sha256:85555c5243e31859800ba9c4b3de11d02614d3929df911a8818c720ff6e5aa3d
 
 LABEL org.opencontainers.image.title="Vyra OS"
 LABEL org.opencontainers.image.description="Vyra bootc-based Linux foundation"
 LABEL org.opencontainers.image.vendor="VFM Studios"
 LABEL org.opencontainers.image.version="0.1.0-dev"
 LABEL io.vyra.base="quay.io/fedora/fedora-bootc:45"
-LABEL io.vyra.base-digest="sha256:bf0f127b2fb2432bb48bf730406ec94fbf8943ab987cfdadca2de6d84426bbc9"
-LABEL io.vyra.base-manifest-list-digest="sha256:2342f957281b061919c48a12227f9cd04f2d9825d17629fd914083aaa672002c"
+LABEL io.vyra.base-digest="sha256:85555c5243e31859800ba9c4b3de11d02614d3929df911a8818c720ff6e5aa3d"
+LABEL io.vyra.base-manifest-list-digest="sha256:f3afa8b1d590ba2842366e0bca4f921ba4a0c7b5ee72679b632aeaa08f170a1e"
 LABEL io.vyra.base-digest-checked="2026-11-25"
 
 # Build-host TLS workaround (this sandbox VM only): the egress proxy MITMs
