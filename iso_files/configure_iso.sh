@@ -53,6 +53,10 @@ DRACUT_NO_XATTR=1 dracut -v --force --zstd --reproducible --no-hostonly \
 # SDDM autologin — standard Fedora live behaviour.
 dnf install -y livesys-scripts
 sed -i "s/^livesys_session=.*/livesys_session=kde/" /etc/sysconfig/livesys
+# Vyra live hostname: livesys sets "localhost-live" at boot (livesys-main);
+# point it at vyra-live so the live session reads as Vyra, not Fedora.
+sed -i 's/hostnamectl set-hostname "localhost-live"/hostnamectl set-hostname "vyra-live"/' /usr/libexec/livesys/livesys-main
+grep -q 'vyra-live' /usr/libexec/livesys/livesys-main
 systemctl enable livesys.service livesys-late.service
 
 # Anaconda (GTK first) + block-device support + ISO builder bits + boot splash.
@@ -71,10 +75,12 @@ mkdir -p /var/lib/rpm-state  # Anaconda needs this
 cp /usr/share/vyra/branding/batch-01/vyra-plymouth-logo.png /usr/share/anaconda/pixmaps/vyra-logo.png
 mkdir -p /usr/share/anaconda/pixmaps/vyra
 cp /usr/share/vyra/branding/batch-01/vyra.css /usr/share/anaconda/pixmaps/vyra/vyra.css
+# "Install Vyra OS" desktop label (was "Install to Hard Drive").
+sed -i 's/^Name=Install to Hard Drive$/Name=Install Vyra OS/' /usr/share/applications/liveinst.desktop
+grep -q '^Name=Install Vyra OS$' /usr/share/applications/liveinst.desktop
 
-# Anaconda profile "vyra" (Bluefin pattern). The Vyra image keeps the
-# Fedora os-release ID, so the profile matches on os_id=fedora; if the
-# core image ever sets ID=vyra, change os_id in iso_files/vyra.conf.
+# Anaconda profile "vyra" (Bluefin pattern). The core image sets
+# os-release ID=vyra, so the profile matches on os_id=vyra (vyra.conf).
 mkdir -p /etc/anaconda/profile.d
 cp /tmp/vyra.conf /etc/anaconda/profile.d/vyra.conf
 
