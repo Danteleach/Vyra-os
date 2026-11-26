@@ -1,10 +1,13 @@
-# bootc-image-builder config — Phase 1/2 gate, NOT yet run successfully.
-# Use with: ./scripts/build-iso.sh
+# bootc-image-builder config — retained for the qcow2 smoke-test job only
+# (.github/workflows/build.yml, qcow2-smoke). The anaconda-iso path this
+# config once served is RETIRED: anaconda-iso is deprecated upstream, the
+# builder is frozen since 2026-06-18, and the live ISO is now built by
+# Titanoboa (build-live-iso job). See docs/INSTALL_DEEP_DIVE_2026-11-26.md.
+# Use with: ./scripts/build-iso.sh (qcow2 only)
 # Reference: https://osbuild.org/docs/developer-guide/projects/image-builder/advanced/bootc/isos/
-# This config produces a Live ISO (anaconda installer) from the built
-# localhost/vyra-os:0.1.0-dev container image. It does NOT partition,
-# format, or install anything on the build host — the builder runs in a
-# container and writes only to ./artifacts/.
+# This config creates the user `vfm` (wheel) in the disk image. It does NOT
+# partition, format, or install anything on the build host — the builder
+# runs in a container and writes only to ./artifacts/.
 [[customizations.user]]
 name = "vfm"
 groups = ["wheel"]
