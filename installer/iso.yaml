@@ -1,0 +1,16 @@
+# Titanoboa / bootc-image-builder ISO config.
+# build_iso.sh (ublue-os/titanoboa) reads `.label` (the ISO volume label,
+# which must match root=live:CDLABEL= in the GRUB entries below) and
+# `.grub2.*`. The file is hard-required — the build exits 1 if absent.
+# Pattern: bearyjd/bazzite-tower installer/src/iso.yaml.
+label: "Vyra-OS-Live"
+grub2:
+  timeout: 10
+  default: 0
+  entries:
+    - name: "Try Vyra OS"
+      linux: "/images/pxeboot/vmlinuz quiet rhgb root=live:CDLABEL=Vyra-OS-Live enforcing=0 rd.live.image"
+      initrd: "/images/pxeboot/initrd.img"
+    - name: "Install Vyra OS"
+      linux: "/images/pxeboot/vmlinuz quiet rhgb root=live:CDLABEL=Vyra-OS-Live enforcing=0 rd.live.image vyra.start-installer=1"
+      initrd: "/images/pxeboot/initrd.img"
