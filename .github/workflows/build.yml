@@ -98,7 +98,107 @@ jobs:
         id: build
         uses: osbuild/bootc-image-builder-action@30960621b85c9e76c653082f9ef4cab5a10210d5 # main
         with:
-                    -f installer/Containerfile.live \
+          builder-image: quay.io/centos-bootc/bootc-image-builder:latest
+          config-file: ./config/bootc-image-builder.toml
+          image: ghcr.io/danteleach/vyra-os:ci
+          chown: ${{ env.USER_UID }}:${{ env.USER_GID }}
+          types: qcow2
+          rootfs: btrfs
+          additional-args: --use-librepo=True
+      - name: Check free disk after build
+        run: df -h
+      - name: Upload qcow2
+        uses: actions/upload-artifact@v4
+        with:
+          name: vyra-os-0.1.0-dev-qcow2
+          path: ${{ steps.build.outputs.output-directory }}
+          if-no-files-found: error
+          retention-days: 7
+          compression-level: 0
+
+  build-live-iso:
+    # Ubuntu-style live ISO: boot to a live Plasma desktop, try the OS,
+    # install from the desktop. Built with ublue-os/titanoboa (the live-ISO
+    # builder Bluefin/Bazzite/Aurora/Margine ship) from the installer
+    # payload image (installer/Containerfile.live), which layers the live
+    # session + Anaconda onto the Vyra core image and embeds the install
+    # image in its container storage, so install works OFFLINE — the
+    # install-time registry pull is what stalled the 0.1.0-dev installs
+    # (see docs/INSTALL_DEEP_DIVE_2026-11-26.md).
+    #
+    # Titanoboa pin: ublue-os/titanoboa@5c457c3d0518bd17e754be0fd98a60d29d26abb4
+    # (main @ 2026-05-19, commit #138 "Only use container images as the only
+    # source of truth"; no tagged release to pin — the same pin
+    # bazzite-tower uses). WARNING: that commit removed the action's
+    # hook/flatpak/kargs/container-image inputs — the current action takes
+    # ONLY image-ref and iso-dest. All live-session config must already be
+    # baked into the payload image (iso_files/configure_iso.sh does that);
+    # there is no hook-post-rootfs or netinstall input to set. Do not add
+    # inputs the action does not declare. The embedded payload (the
+    # netinstall=0 behaviour) comes from the nested `podman pull` inside
+    # the payload build, not from an action input.
+    runs-on: ubuntu-24.04
+    needs: container-build
+    timeout-minutes: 120
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: Maximize build space
+        uses: ublue-os/remove-unwanted-software@cc0becac701cf642c8f0a6613bbdaf5dc36b259e # v9
+        with:
+          remove-codeql: true
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Install Podman
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y podman
+      # Root cause of a deterministic Titanoboa failure (bazzite-tower
+      # issue #47 / PR #48): the ubuntu-24.04 runner's podman bundle
+      # switched rootful podman to overlay.mount_program=fuse-overlayfs,
+      # and the payload build's NESTED `podman pull` then writes whiteouts
+      # as literal `.wh.<name>` files, which fuse-overlayfs rejects with
+      # EINVAL. Native kernel overlayfs has no such restriction. Pin it
+      # job-globally before ANY rootful podman use (both this build and
+      # the titanoboa action read the same root storage).
+      - name: Use native kernel overlayfs for rootful podman
+        run: |
+          set -euo pipefail
+          printf '[storage]\ndriver = "overlay"\nrunroot = "/run/containers/storage"\ngraphroot = "/var/lib/containers/storage"\n' \
+            | sudo tee /etc/containers/storage.conf
+          # `podman system reset` reads the store's own recorded graph driver
+          # before it can clear it, so it can fail for the exact same reason
+          # it's meant to fix — hence the guarded reset, explicit recursive
+          # unmount, and rm -rf below (bazzite-tower build-iso.yml).
+          sudo podman system reset -f 2>/dev/null || true
+          sudo umount -R /var/lib/containers/storage /run/containers/storage 2>/dev/null || true
+          sudo rm -rf /var/lib/containers/storage /run/containers/storage
+          sudo podman info --format 'driver={{.Store.GraphDriverName}} options={{.Store.GraphOptions}}'
+          # Fail loudly if the mount_program override somehow survived — a
+          # silent fallback would reintroduce the exact failure this step
+          # exists to prevent.
+          if sudo podman info --format '{{.Store.GraphOptions}}' | grep -q mount_program; then
+            echo "::error::rootful podman still uses a mount_program (fuse-overlayfs); native overlayfs pin failed"
+            exit 1
+          fi
+      - name: Check free disk
+        run: df -h
+      # The payload image is the live session + Anaconda, built FROM the
+      # core image. Privileged build: iso_files/configure_iso.sh runs a
+      # nested `podman pull` (embedding the core image for offline
+      # install) and a dracut regen. --squash keeps the payload one layer.
+      # Build context is the repo root (the Containerfile COPYs iso_files/
+      # and installer/iso.yaml); .containerignore keeps .git/artifacts out.
+      - name: Build live-ISO payload
+        run: |
+          set -euo pipefail
+          sudo podman build \
+            --cap-add sys_admin \
+            --security-opt label=disable \
+            --squash \
+            --build-arg BASE_IMAGE=ghcr.io/danteleach/vyra-os:ci \
+            -f installer/Containerfile.live \
             -t localhost/vyra-os-payload:ci .
       # Work around the titanoboa action's iso-dest handling: it runs plain
       # `realpath` on the destination *before* creating it, which errors when
