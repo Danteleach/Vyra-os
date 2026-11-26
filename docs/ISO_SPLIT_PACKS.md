@@ -47,11 +47,30 @@ Repo 1's release notes link to Repo 2 for the packs and the walkthrough.
 If a part comes in over budget, the lever is trimming or deferring content to a
 later version — never splitting Part 1 (it must stay a single bootable file).
 
+**Live-ISO tension (2026-11-26, owner to re-decide — NOT re-decided here):**
+Part 1 is now a **live ISO** (Titanoboa; see `docs/INSTALL_DEEP_DIVE_2026-11-26.md`
+and the run #9 section of `docs/PHASE_2_REPORT_2026-11-24.md`), not the
+anaconda installer ISO this budget was written for. A live ISO embeds the
+squashfs of the whole image (~5 GB uncompressed → roughly 2 GB compressed)
+**plus**, in embedded/offline mode, the install payload again in the
+image's container storage — Bluefin's live ISOs are ~5 GB. The ≤1.9 GB
+Part 1 budget is therefore **not achievable for a live ISO** as written,
+and the 3.8–4.0 GB total and the 2 GiB-per-file GitHub release cap are in
+tension with it too (a live ISO cannot be a release asset; distribution is
+artifacts with 7-day expiry, or Internet Archive for public release).
+Do NOT re-budget here: measure the first live-ISO build (run #9), then the
+owner re-decides the Part 1 budget — either raising it, or slimming the
+core image hard first (the split design's slim-core work). Keep the 3-part
+split for *content*; the numbers follow the measurement.
+
 ## The three parts
 
 ### Part 1 — STABILITY (required, standalone)
 
-File: `vyra-os-0.1.0-core.iso` — the bootc-image-builder Anaconda installer ISO.
+File: `vyra-os-0.1.0-core.iso` — the Titanoboa live ISO (replaces the
+bootc-image-builder Anaconda installer ISO, retired 2026-11-26 — see
+`docs/INSTALL_DEEP_DIVE_2026-11-26.md`). Boots to a live Plasma desktop
+to try before installing; the installer runs from the desktop.
 
 Contents (0.1): kernel, systemd, NetworkManager, PipeWire/WirePlumber, BlueZ,
 SELinux enforcing, firewalld, cryptsetup/LUKS, Btrfs, bootc, Podman, Flatpak,
@@ -183,6 +202,9 @@ Written for a first-time user; no unexplained jargon.
 
 - Exact ISO/pack sizes: unknown until the first build. Compression ratio
   ~2.5:1 is an assumption to confirm.
+- Live ISO size (2026-11-26): measure at run #9 before re-budgeting Part 1
+  (see the live-ISO tension note under "Size budget" above). `erofs`
+  compression is worth testing for faster boot at similar size.
 - NVIDIA driver: proprietary; stays an opt-in Part 2 item, never in core.
 - Later versions may publish the derived images to GHCR instead of tarballs;
   the pack format stays the same, only the fetch step changes.
