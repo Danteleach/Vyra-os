@@ -105,6 +105,34 @@ RUN install -d -m 0755 /usr/share/vyra \
     && printf '%s\n' 'ONE CORE. TWO WORLDS. EVERY DEVICE.' > /usr/share/vyra/slogan \
     && printf '%s\n' 'Built to Move Culture Forward' > /usr/share/vyra/tagline
 
+# Phase A (Batch 01) — Desktop identity: Vyra wallpaper package,
+# org.vyra.desktop look-and-feel, system-wide defaults + lock screen.
+# Sources live under vyra-branding/ (COPYed above to /usr/share/vyra/branding);
+# the PNGs are the Batch 01 pack files, never edited in place.
+RUN install -d -m 0755 /usr/share/wallpapers/Vyra/contents/images \
+        /usr/share/wallpapers/Vyra/contents/images_dark \
+    && cp /usr/share/vyra/branding/batch-01/02_light_wallpaper_master_3840x2160.png \
+        /usr/share/wallpapers/Vyra/contents/images/3840x2160.png \
+    && cp /usr/share/vyra/branding/batch-01/01_desktop_wallpaper_master_3840x2160.png \
+        /usr/share/wallpapers/Vyra/contents/images_dark/3840x2160.png \
+    && cp /usr/share/vyra/branding/batch-01/01b_desktop_wallpaper_1920x1080.png \
+        /usr/share/wallpapers/Vyra/contents/images_dark/1920x1080.png \
+    && cp /usr/share/vyra/branding/batch-01/01c_desktop_wallpaper_ultrawide_3440x1440.png \
+        /usr/share/wallpapers/Vyra/contents/images_dark/3440x1440.png \
+    && cp /usr/share/vyra/branding/batch-01/screenshot.png \
+        /usr/share/wallpapers/Vyra/contents/screenshot.png \
+    && cp /usr/share/vyra/branding/batch-01/03_lock_screen_background_3840x2160.png \
+        /usr/share/vyra/branding/lock-screen-background.png \
+    && cp /usr/share/vyra/branding/plasma/wallpapers/Vyra/metadata.json \
+        /usr/share/wallpapers/Vyra/metadata.json \
+    && mkdir -p /usr/share/plasma/look-and-feel \
+    && cp -r /usr/share/vyra/branding/plasma/look-and-feel/org.vyra.desktop \
+        /usr/share/plasma/look-and-feel/org.vyra.desktop \
+    && mkdir -p /etc/xdg \
+    && cp /usr/share/vyra/branding/xdg/kscreenlockerrc /etc/xdg/kscreenlockerrc \
+    && (grep -q '^LookAndFeelPackage=' /etc/xdg/kdeglobals 2>/dev/null \
+        || printf '[KDE]\nLookAndFeelPackage=org.vyra.desktop\n' >> /etc/xdg/kdeglobals)
+
 # Hardware discovery (host-side script, also shipped in-image for first-boot use).
 COPY scripts/hardware-report.sh /usr/share/vyra/hardware-report.sh
 COPY scripts/hardware-report.py /usr/share/vyra/hardware-report.py
