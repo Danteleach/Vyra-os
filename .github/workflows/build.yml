@@ -8,7 +8,7 @@ on:
 
 jobs:
   container-build:
-    # Build the Vyra OS bootc image and push it to GHCR. The ISO job pulls
+    # Build the Vyra OS bootc image and push it to GHCR. The ISO jobs pull
     # it from there — this is the canonical pattern (ublue-os/image-template,
     # AeroCore-OS, fp-os, Aurora-LTS, Margine): the image-builder action
     # runs against a registry image, never a locally-built one, and never
@@ -38,25 +38,33 @@ jobs:
           echo "${{ secrets.GITHUB_TOKEN }}" | podman login ghcr.io -u ${{ github.actor }} --password-stdin
           podman push localhost/vyra-os:ci ghcr.io/danteleach/vyra-os:ci
 
-  iso-build:
-    # Live ISO (anaconda installer) from the GHCR image, via the official
-    # osbuild/bootc-image-builder-action. Runs on GitHub's runner because
-    # the sandbox VM cannot run privileged containers (bib requires them)
-    # and has no loop devices. The ISO is uploaded as a build artifact —
-    # nothing is published or installed anywhere by this job.
+  qcow2-smoke:
+    # Bootable disk image (qcow2) from the GHCR image, via the official
+    # osbuild/bootc-image-builder-action. This is the DIAGNOSTIC job: if
+    # qcow2 builds and boots in QEMU, the image is good and the problem was
+    # the ISO type / installer; if it fails the same way, the image itself
+    # is suspect. (Margine and bazzite-tower both keep BIB for qcow2 only.)
     #
-    # History: runs #1–#6 (2026-11-25) ran bib by hand (podman, then
-    # Docker, with a local registry, then with podman storage mounted)
-    # and failed every time — manifest/rootfs errors, a --pull typo, a
-    # missing container-storage mount, and an osbuild mount denial.
-    # Research (2026-11-25) found no project doing it the hand-rolled
-    # way: every working project uses this action on pinned ubuntu-24.04
-    # with the image pulled from GHCR. Two warnings from that research:
-    # anaconda-iso is deprecated upstream (prefer bootc-generic-iso or a
-    # Titanoboa live ISO) and quay.io/centos-bootc/bootc-image-builder:latest
-    # has been frozen since 2026-06-18, before Fedora 45 GA — if this run
-    # fails the same way, the next step is the qcow2 diagnostic (see
-    # docs/PHASE_2_REPORT_2026-11-24.md), not another flag tweak.
+    # History: the previous iso-build job built an anaconda-iso with this
+    # action (run #8, 2026-11-25 — it built and booted, but it is an
+    # automated installer-only ISO on a deprecated path). anaconda-iso is
+    # deprecated upstream (osbuild.org: "on its way out — prefer
+    # bootc-generic-iso or bootc-installer"), the builder container
+    # (quay.io/centos-bootc/bootc-image-builder:latest) has been frozen
+    # since the repo was archived 2026-06-18, before Fedora 45 GA, and
+    # Universal Blue retired anaconda-iso in Mar 2025 (Margine Jun 2026).
+    # The installer-only ISO can never be a live desktop, and its install
+    # stalled in QEMU (see docs/INSTALL_DEEP_DIVE_2026-11-26.md). The live
+    # ISO is now built by the build-live-iso job (Titanoboa). This job
+    # keeps the bib action for the qcow2 smoke test only.
+    #
+    # Runs #1–#6 (2026-11-25) ran bib by hand (podman, then Docker, with
+    # a local registry, then with podman storage mounted) and failed every
+    # time — manifest/rootfs errors, a --pull typo, a missing
+    # container-storage mount, and an osbuild mount denial. Research
+    # (2026-11-25) found no project doing it the hand-rolled way: every
+    # working project uses this action on pinned ubuntu-24.04 with the
+    # image pulled from GHCR.
     runs-on: ubuntu-24.04
     needs: container-build
     timeout-minutes: 90
@@ -90,24 +98,49 @@ jobs:
         id: build
         uses: osbuild/bootc-image-builder-action@30960621b85c9e76c653082f9ef4cab5a10210d5 # main
         with:
-          builder-image: quay.io/centos-bootc/bootc-image-builder:latest
-          config-file: ./config/bootc-image-builder.toml
-          image: ghcr.io/danteleach/vyra-os:ci
-          chown: ${{ env.USER_UID }}:${{ env.USER_GID }}
-          types: anaconda-iso
-          rootfs: btrfs
-          additional-args: --use-librepo=True
+                    -f installer/Containerfile.live \
+            -t localhost/vyra-os-payload:ci .
+      # Work around the titanoboa action's iso-dest handling: it runs plain
+      # `realpath` on the destination *before* creating it, which errors when
+      # the path doesn't exist yet. Pre-create the dir + an empty file so
+      # realpath resolves; the action then moves the built ISO over it.
+      # (bazzite-tower build-iso.yml.)
+      - name: Prepare ISO destination
+        run: |
+          set -euo pipefail
+          mkdir -p "${{ github.workspace }}/output"
+          : > "${{ github.workspace }}/output/Vyra-OS-Live.iso"
+      - name: Build live ISO
+        id: build
+        uses: ublue-os/titanoboa@5c457c3d0518bd17e754be0fd98a60d29d26abb4 # main @ 2026-05-19 (#138); mid-revamp, no tagged release to pin
+        with:
+          image-ref: localhost/vyra-os-payload:ci
+          iso-dest: ${{ github.workspace }}/output/Vyra-OS-Live.iso
+      - name: Stage ISO + checksum
+        id: stage
+        run: |
+          set -euo pipefail
+          ISO_PATH="${{ steps.build.outputs.iso-dest }}"
+          UPLOAD_DIR="${{ github.workspace }}/upload"
+          mkdir -p "${UPLOAD_DIR}"
+          mv "${ISO_PATH}" "${UPLOAD_DIR}/"
+          ISO_NAME="$(basename "${ISO_PATH}")"
+          ( cd "${UPLOAD_DIR}" && sha256sum "${ISO_NAME}" | tee "${ISO_NAME}-CHECKSUM" )
+          echo "upload-dir=${UPLOAD_DIR}" >> "${GITHUB_OUTPUT}"
       - name: Check free disk after build
         run: df -h
-      - name: Upload ISO
+      - name: Upload live ISO
         uses: actions/upload-artifact@v4
         with:
-          name: vyra-os-0.1.0-dev-iso
-          path: ${{ steps.build.outputs.output-directory }}
+          name: vyra-os-0.1.0-dev-live-iso
+          path: ${{ steps.stage.outputs.upload-dir }}
           if-no-files-found: error
-          # The ISO is ~5-7 GB; GitHub Free includes only 500 MB of artifact
-          # storage on private repos (public repos are free). A 7-day
-          # retention keeps the storage cost to pennies and stops old ISOs
-          # piling up. Download the ISO promptly after the run finishes.
+          # A live ISO is several GB; GitHub Free includes only 500 MB of
+          # artifact storage on private repos (public repos are free). A
+          # 7-day retention keeps the storage cost to pennies and stops
+          # old ISOs piling up. Download the ISO promptly after the run
+          # finishes — for public distribution use Internet Archive
+          # (see docs/ISO_SPLIT_PACKS.md), not release assets: GitHub
+          # caps each release file at 2 GiB.
           retention-days: 7
           compression-level: 0
