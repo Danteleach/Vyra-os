@@ -200,22 +200,30 @@ jobs:
             --build-arg BASE_IMAGE=ghcr.io/danteleach/vyra-os:ci \
             -f installer/Containerfile.live \
             -t localhost/vyra-os-payload:ci .
-      # Work around the titanoboa action's iso-dest handling: it runs plain
-      # `realpath` on the destination *before* creating it, which errors when
-      # the path doesn't exist yet. Pre-create the dir + an empty file so
-      # realpath resolves; the action then moves the built ISO over it.
-      # (bazzite-tower build-iso.yml.)
-      - name: Prepare ISO destination
-        run: |
-          set -euo pipefail
-          mkdir -p "${{ github.workspace }}/output"
-          : > "${{ github.workspace }}/output/Vyra-OS-Live.iso"
+      # Titanoboa same-file trap (run #18, 2026-11-26): the action runs from
+      # its own directory and builds the ISO into <action-path>/output/
+      # (TITANOBOA_OUTPUT_DIR defaults to ./output). It then computes the
+      # destination with `realpath --relative-base=$GITHUB_WORKSPACE` +
+      # `realpath -m`, which resolves RELATIVE TO THE ACTION DIRECTORY — so
+      # an iso-dest of $GITHUB_WORKSPACE/output/Vyra-OS-Live.iso resolves
+      # to <action-path>/output/Vyra-OS-Live.iso, the exact file it just
+      # built, and `mv` fails with "are the same file". The ISO itself
+      # built fine (xorriso completed, 1,371,096 sectors); only the move
+      # failed, so no artifact was uploaded. Fix: point iso-dest at the
+      # workspace ROOT (no output/ subdir), so the resolved destination
+      # (<action-path>/Vyra-OS-Live.iso) differs from the built file
+      # (<action-path>/output/Vyra-OS-Live.iso). No pre-create step is
+      # needed: realpath only requires the parent dir to exist, and the
+      # workspace root always does. The old "Prepare ISO destination"
+      # step (pre-creating output/Vyra-OS-Live.iso) is removed — it
+      # addressed a `realpath` failure that does not occur, and the
+      # action never wrote to that path.
       - name: Build live ISO
         id: build
         uses: ublue-os/titanoboa@5c457c3d0518bd17e754be0fd98a60d29d26abb4 # main @ 2026-05-19 (#138); mid-revamp, no tagged release to pin
         with:
           image-ref: localhost/vyra-os-payload:ci
-          iso-dest: ${{ github.workspace }}/output/Vyra-OS-Live.iso
+          iso-dest: ${{ github.workspace }}/Vyra-OS-Live.iso
       - name: Stage ISO + checksum
         id: stage
         run: |
