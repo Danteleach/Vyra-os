@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Vyra ISO build — Phase 2 gate. Requires: podman, a built
-# localhost/vyra-os:0.1.0-dev image, and ~20GB free in ./artifacts.
+# localhost/vyra-os:0.0.0 image, and ~20GB free in ./artifacts.
 # Writes ONLY to ./artifacts/. Never runs on, or writes to, a physical disk.
 #
 # Environment adaptations (this sandbox VM, 2026-11-24):
@@ -22,8 +22,9 @@
 #   The bundle is the host's public CA set + the proxy CA; no private
 #   key is involved.
 set -euo pipefail
-IMAGE="${Vyra_IMAGE:-localhost/vyra-os:0.1.0-dev}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+Vyra_VERSION="$(cat "$ROOT/VERSION" 2>/dev/null || echo 0.0.0)"
+IMAGE="${Vyra_IMAGE:-localhost/vyra-os:${Vyra_VERSION}}"
 cd "$ROOT"
 command -v podman >/dev/null 2>&1 || { echo "ERROR: Podman is required." >&2; exit 1; }
 mkdir -p artifacts .tmp-iso

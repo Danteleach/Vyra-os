@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 set -euo pipefail
-IMAGE="${Vyra_IMAGE:-localhost/vyra-os:0.1.0-dev}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+Vyra_VERSION="$(cat "$ROOT/VERSION" 2>/dev/null || echo 0.0.0)"
+IMAGE="${Vyra_IMAGE:-localhost/vyra-os:${Vyra_VERSION}}"
 cd "$ROOT"
 command -v podman >/dev/null 2>&1 || {
   echo "ERROR: Podman is required. Install it using your host distribution's official package manager." >&2
   exit 1
 }
-podman build --pull=always -t "$IMAGE" -f Containerfile .
+podman build --pull=always --build-arg "Vyra_VERSION=$Vyra_VERSION" -t "$IMAGE" -f Containerfile .
 echo
 echo "Built development image: $IMAGE"
 echo "This is a container image, not a bootable ISO."

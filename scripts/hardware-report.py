@@ -25,6 +25,21 @@ def run(cmd):
     except Exception:
         return ""
 
+def vyra_version():
+    # Single source of truth: the VERSION file (docs/VERSION_NAMING.md).
+    # In the OS it lives at /usr/share/vyra/VERSION; in the repo, at the
+    # repo root next to this script's parent dir. Falls back to 0.0.0
+    # (pre-release) when neither can be read.
+    for p in (Path("/usr/share/vyra/VERSION"),
+              Path(__file__).resolve().parent.parent / "VERSION"):
+        try:
+            v = p.read_text().strip()
+            if v:
+                return v
+        except Exception:
+            pass
+    return "0.0.0"
+
 def mem_gb():
     try:
         for line in Path("/proc/meminfo").read_text().splitlines():
@@ -86,7 +101,7 @@ def main():
         perf = "ENTRY"
     report = {
         "product": "Vyra OS",
-        "version": "0.1.0-dev",
+        "version": vyra_version(),
         "generator": "scripts/hardware-report.py",
         "os_release": Path("/etc/os-release").read_text() if Path("/etc/os-release").exists() else "",
         "kernel": run(["uname", "-a"]),

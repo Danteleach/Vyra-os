@@ -1,4 +1,5 @@
-# Vyra OS foundation — development image, Phase 1 (0.1.0-dev)
+# Vyra OS foundation — pre-release image (0.0.0); version from the VERSION
+# file at the repo root (docs/VERSION_NAMING.md — single source of truth).
 # Base pinned by tag + per-arch digest, re-verified 2026-11-27
 # (the 2026-11-24 pin expired: Quay rebuilt the image and the old digest
 #  went "manifest unknown", which failed the first CI run in seconds;
@@ -20,10 +21,17 @@
 # 0.1 stays on 45 for stability. Do not move to 46 without a Phase decision.
 FROM quay.io/fedora/fedora-bootc:45@sha256:30c120e9b7ad3d7c94ae9ead413025f316775adf94f8d5fb3f9a62f808f0763a
 
+# Single source of truth for the Vyra version is the VERSION file at the
+# repo root (docs/VERSION_NAMING.md). CI and the build scripts pass it as
+# a build arg (--build-arg Vyra_VERSION=$(cat VERSION)); the default below
+# mirrors the VERSION file so local builds without the arg stay correct.
+# On a version bump, change VERSION first, then this default to match.
+ARG Vyra_VERSION=0.0.0
+
 LABEL org.opencontainers.image.title="Vyra OS"
 LABEL org.opencontainers.image.description="Vyra bootc-based Linux foundation"
 LABEL org.opencontainers.image.vendor="VFM Studios"
-LABEL org.opencontainers.image.version="0.1.0-dev"
+LABEL org.opencontainers.image.version="${Vyra_VERSION}"
 LABEL io.vyra.base="quay.io/fedora/fedora-bootc:45"
 LABEL io.vyra.base-digest="sha256:30c120e9b7ad3d7c94ae9ead413025f316775adf94f8d5fb3f9a62f808f0763a"
 LABEL io.vyra.base-manifest-list-digest="sha256:28d699682aa6f6b48c96864032717c596020d5d9890f83f488454e0d72f955b7"
@@ -105,8 +113,9 @@ RUN systemctl enable NetworkManager.service \
 # Official VFM logo assets were not on disk at Phase 1 audit (2026-11-20);
 # do not invent a logo file here. Branding files are copied from vyra-branding/.
 COPY vyra-branding /usr/share/vyra/branding
+COPY VERSION /usr/share/vyra/VERSION
 RUN install -d -m 0755 /usr/share/vyra \
-    && printf '%s\n' 'Vyra OS 0.1.0-dev' > /usr/share/vyra/release \
+    && printf '%s\n' "Vyra OS ${Vyra_VERSION}" > /usr/share/vyra/release \
     && printf '%s\n' 'ONE CORE. TWO WORLDS. EVERY DEVICE.' > /usr/share/vyra/slogan \
     && printf '%s\n' 'Built to Move Culture Forward' > /usr/share/vyra/tagline
 
@@ -312,10 +321,10 @@ RUN mkdir -p /etc/systemd/user/plasma-plasmashell.service.d \
 # depends on it. NOTE: /usr/lib/os-release is owned by fedora-release, so a
 # future dnf update of that package could overwrite these values; a durable
 # fix is a vyra-release package (future work).
-RUN sed -i 's/^NAME=.*/NAME="Vyra OS"/; s/^PRETTY_NAME=.*/PRETTY_NAME="Vyra OS 0.1"/; s/^ID=.*/ID=vyra/' /usr/lib/os-release \
+RUN sed -i "s/^NAME=.*/NAME=\"Vyra OS\"/; s/^PRETTY_NAME=.*/PRETTY_NAME=\"Vyra OS ${Vyra_VERSION}\"/; s/^ID=.*/ID=vyra/" /usr/lib/os-release \
     && (grep -q '^ID_LIKE=' /usr/lib/os-release || printf 'ID_LIKE="fedora"\n' >> /usr/lib/os-release) \
     && grep -q '^NAME="Vyra OS"' /usr/lib/os-release \
-    && grep -q '^PRETTY_NAME="Vyra OS 0.1"' /usr/lib/os-release \
+    && grep -q "^PRETTY_NAME=\"Vyra OS ${Vyra_VERSION}\"" /usr/lib/os-release \
     && grep -q '^ID=vyra$' /usr/lib/os-release \
     && grep -q '^ID_LIKE="fedora"' /usr/lib/os-release
 

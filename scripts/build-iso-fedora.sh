@@ -12,8 +12,9 @@
 # This script uses `sudo podman` throughout so the image lands in
 # /var/lib/containers/storage, which the builder container mounts.
 set -euo pipefail
-IMAGE="${Vyra_IMAGE:-localhost/vyra-os:0.1.0-dev}"
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+Vyra_VERSION="$(cat "$ROOT/VERSION" 2>/dev/null || echo 0.0.0)"
+IMAGE="${Vyra_IMAGE:-localhost/vyra-os:${Vyra_VERSION}}"
 cd "$ROOT"
 command -v podman >/dev/null 2>&1 || { echo "ERROR: install podman first: sudo dnf install -y podman git" >&2; exit 1; }
 mkdir -p artifacts certs
