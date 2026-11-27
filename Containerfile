@@ -1,13 +1,15 @@
 # Vyra OS foundation — development image, Phase 1 (0.1.0-dev)
-# Base pinned by tag + per-arch digest, re-verified 2026-11-26
+# Base pinned by tag + per-arch digest, re-verified 2026-11-27
 # (the 2026-11-24 pin expired: Quay rebuilt the image and the old digest
 #  went "manifest unknown", which failed the first CI run in seconds;
 #  the 2026-11-25 pin expired the same way 2026-11-26 and failed run #10
-#  in 30s — Quay garbage-collects unreferenced digests within ~a day):
+#  in 30s; the 2026-11-26 pin expired the same way 2026-11-27 and would
+#  have failed run #26 — Quay garbage-collects unreferenced digests
+#  within ~a day):
 #   quay.io/fedora/fedora-bootc:45
-#   manifest-list digest sha256:f3afa8b1d590ba2842366e0bca4f921ba4a0c7b5ee72679b632aeaa08f170a1e
-#   (Quay API, checked Thu 2026-11-26, 4 children)
-#   amd64 child digest sha256:85555c5243e31859800ba9c4b3de11d02614d3929df911a8818c720ff6e5aa3d
+#   manifest-list digest sha256:28d699682aa6f6b48c96864032717c596020d5d9890f83f488454e0d72f955b7
+#   (Quay API, checked Fri 2026-11-27, 4 children)
+#   amd64 child digest sha256:30c120e9b7ad3d7c94ae9ead413025f316775adf94f8d5fb3f9a62f808f0763a
 #   (from the Quay registry API manifest list, verified resolving)
 # LESSON 2026-11-24: podman 4.9.3 in this environment FAILS pulling by the
 # manifest-list digest ("can't talk to a V1 container registry", exit 125),
@@ -16,16 +18,16 @@
 # Re-verify digests at build time — Fedora 45 tags move with updates.
 # Fedora 46 was seen emerging 2026-11-09 in upstream renovate activity;
 # 0.1 stays on 45 for stability. Do not move to 46 without a Phase decision.
-FROM quay.io/fedora/fedora-bootc:45@sha256:85555c5243e31859800ba9c4b3de11d02614d3929df911a8818c720ff6e5aa3d
+FROM quay.io/fedora/fedora-bootc:45@sha256:30c120e9b7ad3d7c94ae9ead413025f316775adf94f8d5fb3f9a62f808f0763a
 
 LABEL org.opencontainers.image.title="Vyra OS"
 LABEL org.opencontainers.image.description="Vyra bootc-based Linux foundation"
 LABEL org.opencontainers.image.vendor="VFM Studios"
 LABEL org.opencontainers.image.version="0.1.0-dev"
 LABEL io.vyra.base="quay.io/fedora/fedora-bootc:45"
-LABEL io.vyra.base-digest="sha256:85555c5243e31859800ba9c4b3de11d02614d3929df911a8818c720ff6e5aa3d"
-LABEL io.vyra.base-manifest-list-digest="sha256:f3afa8b1d590ba2842366e0bca4f921ba4a0c7b5ee72679b632aeaa08f170a1e"
-LABEL io.vyra.base-digest-checked="2026-11-25"
+LABEL io.vyra.base-digest="sha256:30c120e9b7ad3d7c94ae9ead413025f316775adf94f8d5fb3f9a62f808f0763a"
+LABEL io.vyra.base-manifest-list-digest="sha256:28d699682aa6f6b48c96864032717c596020d5d9890f83f488454e0d72f955b7"
+LABEL io.vyra.base-digest-checked="2026-11-27"
 
 # Build-host TLS workaround (this sandbox VM only): the egress proxy MITMs
 # TLS with "Hatch Sandbox Egress CA", which the Fedora image does not trust,
