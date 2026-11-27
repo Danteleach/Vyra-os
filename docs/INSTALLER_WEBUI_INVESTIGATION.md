@@ -276,8 +276,13 @@ block, with a guard that fails the build if upstream changes the script's shape:
 # startup exceeds that, so webui-desktop exits before any browser is launched
 # (installer window never appears, runs 24/25). Raise the wait to 600 s.
 # Guard: fail the build if upstream changes the timeout line.
-sed -i 's/^timeout=60$/timeout=600/' /usr/libexec/anaconda/webui-desktop
-grep -q '^timeout=600$' /usr/libexec/anaconda/webui-desktop
+# CORRECTION 2026-11-27 (run 26 failed on the original pattern): the line in
+# the shipped anaconda-webui-90-1.fc45 script is INDENTED ("    timeout=60"
+# inside get_default_browser), so ^timeout=60$ never matched and the guard
+# correctly failed the build. Match with optional leading whitespace and
+# preserve it. Verified against the extracted RPM (line 108, 4-space indent).
+sed -i 's/^\([[:space:]]*\)timeout=60$/\1timeout=600/' /usr/libexec/anaconda/webui-desktop
+grep -q '^[[:space:]]*timeout=600$' /usr/libexec/anaconda/webui-desktop
 ```
 
 Why 600 s: the slowest observed Anaconda startup phase is bounded by the live

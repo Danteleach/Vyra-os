@@ -73,9 +73,14 @@ mkdir -p /var/lib/rpm-state  # Anaconda needs this
 # slow hardware — Anaconda's Python startup exceeds that, so webui-desktop
 # exits before any browser is launched (installer window never appears,
 # runs 24/25). Raise the wait to 600 s.
+# CORRECTION 2026-11-27 (run 26 failed on this): the line in the shipped
+# anaconda-webui-90-1.fc45 script is INDENTED ("    timeout=60" inside
+# get_default_browser), so the original ^timeout=60$ pattern never matched
+# and the guard correctly failed the build. Match with optional leading
+# whitespace and preserve it; guard matches the same way.
 # Guard: fail the build if upstream changes the timeout line.
-sed -i 's/^timeout=60$/timeout=600/' /usr/libexec/anaconda/webui-desktop
-grep -q '^timeout=600$' /usr/libexec/anaconda/webui-desktop
+sed -i 's/^\([[:space:]]*\)timeout=60$/\1timeout=600/' /usr/libexec/anaconda/webui-desktop
+grep -q '^[[:space:]]*timeout=600$' /usr/libexec/anaconda/webui-desktop
 
 # Phase D (Batch 01) — Vyra installer branding (Obsidian + gold). Fedora 45's
 # Anaconda has no sidebar/topbar pixmaps (flat @anaconda_bg_color), so the
