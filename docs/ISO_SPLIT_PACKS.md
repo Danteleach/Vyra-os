@@ -39,29 +39,29 @@ Repo 1's release notes link to Repo 2 for the packs and the walkthrough.
 
 | Part | File | Budget | Uncompressed (est.) |
 | --- | --- | --- | --- |
-| 1 — Stability | `vyra-os-0.1.0-core.iso` (Repo 1) | ≤ 1.9 GB | ~5 GB |
+| 1 — Stability | `vyra-os-0.1.0-core.iso` (Repo 1) | ~3.02 GB (accepted 2026-11-27) | ~5 GB |
 | 2 — Performance | `vyra-os-0.1.0-performance.vyrapack` (Repo 2) | ≤ 1.1 GB | ~2.5 GB |
 | 3 — Aesthetics | `vyra-os-0.1.0-aesthetics.vyrapack` (Repo 2) | ≤ 1.0 GB | ~2 GB |
-| **Total** | | **≤ 4.0 GB** | **~10 GB** |
+| **Total** | | **~5.1 GB** (was ≤ 4.0 GB under the retired 1.9 GB Part 1 budget) | **~10 GB** |
 
 If a part comes in over budget, the lever is trimming or deferring content to a
 later version — never splitting Part 1 (it must stay a single bootable file).
 
-**Live-ISO tension (2026-11-26, owner to re-decide — NOT re-decided here):**
+**Live-ISO tension — DECIDED 2026-11-27 10:08 EST (owner, in main chat): ACCEPT ~3.02 GB as Part 1. The ≤1.9 GB Part 1 budget is retired — no trimming, no redefining the split.**
 Part 1 is now a **live ISO** (Titanoboa; see `docs/INSTALL_DEEP_DIVE_2026-11-26.md`
 and the run #9 section of `docs/PHASE_2_REPORT_2026-11-24.md`), not the
 anaconda installer ISO this budget was written for. A live ISO embeds the
 squashfs of the whole image (~5 GB uncompressed → roughly 2 GB compressed)
 **plus**, in embedded/offline mode, the install payload again in the
 image's container storage — Bluefin's live ISOs are ~5 GB. The ≤1.9 GB
-Part 1 budget is therefore **not achievable for a live ISO** as written,
+Part 1 budget was therefore **not achievable for a live ISO** as written,
 and the 3.8–4.0 GB total and the 2 GiB-per-file GitHub release cap are in
 tension with it too (a live ISO cannot be a release asset; distribution is
 artifacts with 7-day expiry, or Internet Archive for public release).
-Do NOT re-budget here: measure the first live-ISO build (run #9), then the
-owner re-decides the Part 1 budget — either raising it, or slimming the
-core image hard first (the split design's slim-core work). Keep the 3-part
-split for *content*; the numbers follow the measurement.
+Measured live ISOs: run 11 ~2.62 GiB, runs 22/23 ~2.94 GiB, run 24 ~3.07 GiB,
+run 25 ~3.02 GiB. The accepted Part 1 target is therefore **~3.02 GB** (the
+run-25 size); future builds should stay near it, not chase 1.9 GB. Keep the
+3-part split for *content*; the numbers follow the measurement.
 
 ## The three parts
 

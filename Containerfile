@@ -246,6 +246,10 @@ RUN for size in 16 22 24 32 36 48 64 96 128 256 512; do \
 # The theme + default live in the CORE image so the payload's dracut regen
 # (configure_iso.sh) embeds them in the live initramfs. The logo is the D1
 # wordmark crop (vyra-plymouth-logo.png); the theme file is vyra.plymouth.
+# Run 26 (docs/PLYMOUTH_INVESTIGATION.md Option 1): the theme is completed —
+# watermark.png (copy of the D1 wordmark; the two-step plugin loads its logo
+# as watermark.png, not logo.png), 1x1 transparent dialog images
+# (box/entry/lock/bullet.png), and Cantarell fonts (Inter is not installed).
 RUN --mount=type=bind,source=certs/hatch-egress-ca.crt,target=/tmp/hatch-egress-ca.crt,ro \
     --mount=type=bind,source=scripts/sandbox-ca.sh,target=/tmp/sandbox-ca.sh,ro \
     sh /tmp/sandbox-ca.sh trust \
@@ -253,6 +257,11 @@ RUN --mount=type=bind,source=certs/hatch-egress-ca.crt,target=/tmp/hatch-egress-
     && mkdir -p /usr/share/plymouth/themes/vyra \
     && cp /usr/share/vyra/branding/batch-01/vyra.plymouth /usr/share/plymouth/themes/vyra/vyra.plymouth \
     && cp /usr/share/vyra/branding/batch-01/vyra-plymouth-logo.png /usr/share/plymouth/themes/vyra/logo.png \
+    && cp /usr/share/vyra/branding/batch-01/vyra-watermark.png /usr/share/plymouth/themes/vyra/watermark.png \
+    && cp /usr/share/vyra/branding/batch-01/box.png /usr/share/plymouth/themes/vyra/box.png \
+    && cp /usr/share/vyra/branding/batch-01/entry.png /usr/share/plymouth/themes/vyra/entry.png \
+    && cp /usr/share/vyra/branding/batch-01/lock.png /usr/share/plymouth/themes/vyra/lock.png \
+    && cp /usr/share/vyra/branding/batch-01/bullet.png /usr/share/plymouth/themes/vyra/bullet.png \
     && plymouth-set-default-theme vyra \
     && dnf5 clean all \
     && sh /tmp/sandbox-ca.sh remove
@@ -269,6 +278,30 @@ RUN cp -r /usr/share/sddm/themes/01-breeze-fedora /usr/share/sddm/themes/vyra \
         /usr/share/sddm/themes/vyra/theme.conf.user \
     && mkdir -p /etc/sddm.conf.d \
     && cp /usr/share/vyra/branding/sddm/10-theme.conf /etc/sddm.conf.d/10-theme.conf
+
+# Run 26 fixes — startup races found in the run-25 boot test.
+# - plasmashell (docs/PLASMASHELL_RACE_INVESTIGATION.md F1+F2): the shell's
+#   load gate waits on a single-shot async D-Bus reply from
+#   kactivitymanagerd with no retry; order the daemon before the shell
+#   (After=+Wants=) and raise the shell's start timeout 40 s -> 120 s.
+# - krunner (docs/KRUNNER_INVESTIGATION.md Option 1): the shipped unit's
+#   5 s start timeout kills D-Bus activation under TCG; raise it to 60 s.
+#   The NoDisplay desktop file silences the cosmetic xdg-desktop-portal
+#   lookup warning (KDE bug 512650); it does not fix Alt+F2 by itself.
+# Drop-ins are Vyra-owned /etc files (three-way merged across bootc
+# updates); the desktop file ships under /usr/share/applications.
+RUN mkdir -p /etc/systemd/user/plasma-plasmashell.service.d \
+        /etc/systemd/user/plasma-krunner.service.d \
+    && cp /usr/share/vyra/branding/systemd/plasma-plasmashell.service.d/vyra-fix.conf \
+        /etc/systemd/user/plasma-plasmashell.service.d/vyra-fix.conf \
+    && cp /usr/share/vyra/branding/systemd/plasma-krunner.service.d/vyra-timeout.conf \
+        /etc/systemd/user/plasma-krunner.service.d/vyra-timeout.conf \
+    && cp /usr/share/vyra/branding/applications/org.kde.krunner.desktop \
+        /usr/share/applications/org.kde.krunner.desktop \
+    && test -s /etc/systemd/user/plasma-plasmashell.service.d/vyra-fix.conf \
+    && test -s /etc/systemd/user/plasma-krunner.service.d/vyra-timeout.conf \
+    && test -s /usr/share/applications/org.kde.krunner.desktop \
+    && echo 'run-26 systemd drop-ins + krunner desktop file installed'
 
 # Phase D (Batch 01) — Product identity: the installer reads its product
 # name from os-release (Anaconda product.py), not from vyra.conf.

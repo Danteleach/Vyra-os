@@ -67,6 +67,16 @@ dnf install -y --allowerasing \
     grub2-efi-x64-cdboot xorriso isomd5sum plymouth
 mkdir -p /var/lib/rpm-state  # Anaconda needs this
 
+# Run 26 fix (installer race, docs/INSTALLER_WEBUI_INVESTIGATION.md):
+# webui-desktop waits only 60 s for Anaconda to write
+# /run/anaconda/anaconda.conf (get_default_browser); under TCG — and on
+# slow hardware — Anaconda's Python startup exceeds that, so webui-desktop
+# exits before any browser is launched (installer window never appears,
+# runs 24/25). Raise the wait to 600 s.
+# Guard: fail the build if upstream changes the timeout line.
+sed -i 's/^timeout=60$/timeout=600/' /usr/libexec/anaconda/webui-desktop
+grep -q '^timeout=600$' /usr/libexec/anaconda/webui-desktop
+
 # Phase D (Batch 01) — Vyra installer branding (Obsidian + gold). Fedora 45's
 # Anaconda has no sidebar/topbar pixmaps (flat @anaconda_bg_color), so the
 # theme is the logo + custom stylesheet, pointed at by the Vyra profile
