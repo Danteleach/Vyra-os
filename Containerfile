@@ -138,10 +138,20 @@ RUN install -d -m 0755 /usr/share/wallpapers/Vyra/contents/images \
 
 # Phase A2 — Dark colour scheme (BreezeDark) as the system default, so the
 # desktop reads dark/Carbon instead of light Breeze. Interim until the full
-# Vyra Plasma theme (inventory §3.4) lands. kwriteconfig6 (kf6-kconfig)
-# merges into /etc/xdg/kdeglobals; the grep only reports, it never fails
-# the build — QEMU verifies the desktop is actually dark.
-RUN kwriteconfig6 --file /etc/xdg/kdeglobals --group General --key Name BreezeDark 2>/dev/null; grep -q '^Name=BreezeDark' /etc/xdg/kdeglobals && echo 'dark colour scheme: BreezeDark set' || echo 'WARNING: BreezeDark colour scheme NOT set'
+# Vyra Plasma theme (inventory §3.4) lands.
+# CORRECTION 2026-11-26 (Phase A4): the original RUN set `--key Name
+# BreezeDark`, but `Name` is NOT the colour-scheme key — the key Plasma
+# reads is `ColorScheme` under [General] (verified against the shipped
+# Breeze Dark look-and-feel defaults in plasma-workspace 6.8.1:
+#   [kdeglobals][General] ColorScheme=BreezeDark
+# Setting Name alone never switched the scheme, which is why runs 23/24
+# rendered a LIGHT desktop + the light wallpaper despite this RUN
+# reporting success. This RUN now sets ColorScheme (and the breeze-dark
+# icon theme). The look-and-feel defaults file sets the same values, so
+# applying org.vyra.desktop also keeps the session dark.
+RUN kwriteconfig6 --file /etc/xdg/kdeglobals --group General --key ColorScheme BreezeDark 2>/dev/null \
+    && kwriteconfig6 --file /etc/xdg/kdeglobals --group Icons --key Theme breeze-dark 2>/dev/null; \
+    grep -q '^ColorScheme=BreezeDark' /etc/xdg/kdeglobals && echo 'dark colour scheme: BreezeDark set' || echo 'WARNING: BreezeDark colour scheme NOT set'
 
 # Phase A3 (Wallpaper set) — Install the 5 new Vyra wallpaper designs
 # (Flow, Summit, Prism, Orbit, Ring) as selectable KDE wallpaper packages,
@@ -170,6 +180,67 @@ RUN for spec in flow:Flow summit:Summit prism:Prism orbit:Orbit ring:Ring; do \
     && ls -d /usr/share/wallpapers/Vyra-* \
     && test -s /usr/share/vyra/store/catalogue.json \
     && echo 'wallpaper packages + store catalogue installed'
+
+# Phase A4 (UI identity) — Vyra logo home button, black wallpaper default,
+# Fedora logo replacement, floating glass dock.
+# Owner direction 2026-11-26: (1) the Vyra logo as the home/start button
+# (like the Windows Start button) and in the installer, (2) the black
+# hero wallpaper as the default, (3) Fedora logos replaced with the Vyra
+# logo, (4) a floating glassmorphism dock (macOS / elementary style),
+# (5) HarmonyOS elegance throughout.
+#
+# How each piece is wired (all verified against Fedora 45 / Plasma 6.8
+# before writing — see vyra-branding/icons/README.md and
+# vyra-design/VYRA_UI_IDENTITY_DESIGN.md):
+# - Home button: the look-and-feel layout.js
+#   (org.vyra.desktop/contents/layouts/org.kde.plasma.desktop-layout.js,
+#   copied by Phase A's cp -r) creates the dock and sets the Kickoff
+#   applet's icon to "vyra" (writeConfig("icon","vyra") in [General]).
+#   The "vyra" icon is installed below into the hicolor theme.
+# - Black wallpaper default: the look-and-feel defaults now set
+#   ColorScheme=BreezeDark (the correct key — see Phase A2 correction),
+#   so the Vyra wallpaper package picks its images_dark/ (black hero)
+#   variant; the layout.js ALSO pins the desktop wallpaper to the black
+#   hero file by direct path, so either layer alone is enough.
+# - Fedora logos: the Vyra icon is installed under every Fedora icon
+#   name (fedora-logo-icon, org.fedoraproject.AnacondaInstaller,
+#   start-here, anaconda), the Fedora SVG/PNG files are removed or
+#   overwritten, and the pixmaps logos are overwritten with the V mark.
+#   The installer .desktop icon is set to vyra by configure_iso.sh.
+# - Floating glass dock: the layout.js builds a single centered bottom
+#   panel with floating=true, lengthMode=fit, opacity=translucent.
+#   KWin's blur (on by default) frosts the wallpaper behind it.
+# - The layout.js + defaults flow through Phase A's existing cp -r of
+#   the look-and-feel dir; this RUN only installs the icons and
+#   replaces the Fedora logo files.
+RUN for size in 16 22 24 32 36 48 64 96 128 256 512; do \
+        install -d -m 0755 "/usr/share/icons/hicolor/${size}x${size}/apps"; \
+        cp "/usr/share/vyra/branding/icons/vyra-${size}.png" \
+            "/usr/share/icons/hicolor/${size}x${size}/apps/vyra.png"; \
+        cp "/usr/share/vyra/branding/icons/vyra-${size}.png" \
+            "/usr/share/icons/hicolor/${size}x${size}/apps/fedora-logo-icon.png"; \
+        cp "/usr/share/vyra/branding/icons/vyra-${size}.png" \
+            "/usr/share/icons/hicolor/${size}x${size}/apps/start-here.png"; \
+    done \
+    && cp /usr/share/vyra/branding/icons/vyra-48.png \
+        /usr/share/icons/hicolor/48x48/apps/org.fedoraproject.AnacondaInstaller.png \
+    && cp /usr/share/vyra/branding/icons/vyra-256.png \
+        /usr/share/icons/hicolor/256x256/apps/org.fedoraproject.AnacondaInstaller.png \
+    && cp /usr/share/vyra/branding/icons/vyra-256.png \
+        /usr/share/icons/hicolor/256x256/apps/anaconda.png \
+    && rm -f /usr/share/icons/hicolor/scalable/apps/start-here.svg \
+        /usr/share/icons/hicolor/scalable/places/start-here.svg \
+        /usr/share/icons/hicolor/48x48/apps/org.fedoraproject.AnacondaInstaller.svg \
+        /usr/share/icons/hicolor/symbolic/apps/org.fedoraproject.AnacondaInstaller-symbolic.svg \
+    && cp /usr/share/vyra/branding/icons/vyra-512.png /usr/share/pixmaps/fedora-logo.png \
+    && cp /usr/share/vyra/branding/icons/vyra-256.png /usr/share/pixmaps/fedora-logo-small.png \
+    && cp /usr/share/vyra/branding/icons/vyra-256.png /usr/share/anaconda/pixmaps/sidebar-logo.png \
+    && (gtk-update-icon-cache /usr/share/icons/hicolor 2>/dev/null || true) \
+    && test -s /usr/share/icons/hicolor/48x48/apps/vyra.png \
+    && test -s /usr/share/icons/hicolor/48x48/apps/fedora-logo-icon.png \
+    && test -s /usr/share/icons/hicolor/48x48/apps/org.fedoraproject.AnacondaInstaller.png \
+    && test -s /usr/share/icons/hicolor/48x48/apps/start-here.png \
+    && echo 'Vyra icons installed; Fedora logos replaced'
 
 # Phase B (Batch 01) — Plymouth boot splash: Vyra two-step theme.
 # The theme + default live in the CORE image so the payload's dracut regen

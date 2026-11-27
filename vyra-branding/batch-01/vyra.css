@@ -3,7 +3,13 @@
  * It follows the shipped anaconda-gtk.css: the sidebar and nav-box are
  * flat @anaconda_bg_color, and .logo is the image placeholder that a
  * product stylesheet fills. Fedora 45's Anaconda has no sidebar/topbar
- * pixmap files to replace, so the theme is colour + logo only. */
+ * pixmap files to replace, so the theme is colour + logo only.
+ *
+ * Phase A4: .logo is now the Vyra gold V mark (vyra-mark.png, the
+ * transparent 512px icon), not the D1 wordmark. The V mark is the logo
+ * the owner asked for in the installation interface. The D1 wordmark
+ * stays as the Plymouth boot logo. vyra-mark.png is installed by
+ * configure_iso.sh from the icons set (vyra-branding/icons/vyra-512.png). */
 @define-color anaconda_bg_color #050505;
 @define-color vyra_gold #DCAE43;
 @define-color vyra_light_gold #FFE49A;
@@ -14,7 +20,7 @@
 }
 
 .logo {
-    background-image: url("file:///usr/share/anaconda/pixmaps/vyra-logo.png");
+    background-image: url("file:///usr/share/anaconda/pixmaps/vyra-mark.png");
     background-size: contain;
     background-repeat: no-repeat;
     background-position: center;

@@ -69,15 +69,24 @@ mkdir -p /var/lib/rpm-state  # Anaconda needs this
 
 # Phase D (Batch 01) — Vyra installer branding (Obsidian + gold). Fedora 45's
 # Anaconda has no sidebar/topbar pixmaps (flat @anaconda_bg_color), so the
-# theme is the wordmark logo + custom stylesheet, pointed at by the Vyra
-# profile (vyra.conf [User Interface]). Sources are the Batch 01 pack files
+# theme is the logo + custom stylesheet, pointed at by the Vyra profile
+# (vyra.conf [User Interface]). Sources are the Batch 01 pack files
 # inherited from the core image's /usr/share/vyra/branding/ tree.
+# Phase A4: the installer logo is now the Vyra gold V mark (vyra-mark.png,
+# the transparent 512px icon from vyra-branding/icons/), and the desktop
+# "Install Vyra OS" icon is the Vyra logo (Icon=vyra) instead of the
+# Fedora AnacondaInstaller "f". The D1 wordmark (vyra-logo.png) is still
+# copied for the Plymouth boot logo and kept here as a brand asset.
 cp /usr/share/vyra/branding/batch-01/vyra-plymouth-logo.png /usr/share/anaconda/pixmaps/vyra-logo.png
+cp /usr/share/vyra/branding/icons/vyra-512.png /usr/share/anaconda/pixmaps/vyra-mark.png
 mkdir -p /usr/share/anaconda/pixmaps/vyra
 cp /usr/share/vyra/branding/batch-01/vyra.css /usr/share/anaconda/pixmaps/vyra/vyra.css
-# "Install Vyra OS" desktop label (was "Install to Hard Drive").
+# "Install Vyra OS" desktop label (was "Install to Hard Drive") and Vyra
+# logo icon (was the Fedora AnacondaInstaller "f").
 sed -i 's/^Name=Install to Hard Drive$/Name=Install Vyra OS/' /usr/share/applications/liveinst.desktop
+sed -i 's/^Icon=.*/Icon=vyra/' /usr/share/applications/liveinst.desktop
 grep -q '^Name=Install Vyra OS$' /usr/share/applications/liveinst.desktop
+grep -q '^Icon=vyra$' /usr/share/applications/liveinst.desktop
 
 # Anaconda profile "vyra" (Bluefin pattern). The core image sets
 # os-release ID=vyra, so the profile matches on os_id=vyra (vyra.conf).
