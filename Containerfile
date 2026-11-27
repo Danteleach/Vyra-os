@@ -143,6 +143,34 @@ RUN install -d -m 0755 /usr/share/wallpapers/Vyra/contents/images \
 # the build — QEMU verifies the desktop is actually dark.
 RUN kwriteconfig6 --file /etc/xdg/kdeglobals --group General --key Name BreezeDark 2>/dev/null; grep -q '^Name=BreezeDark' /etc/xdg/kdeglobals && echo 'dark colour scheme: BreezeDark set' || echo 'WARNING: BreezeDark colour scheme NOT set'
 
+# Phase A3 (Wallpaper set) — Install the 5 new Vyra wallpaper designs
+# (Flow, Summit, Prism, Orbit, Ring) as selectable KDE wallpaper packages,
+# each with dark + light variants in 3 sizes, plus the VYRA STORE catalogue
+# data. Sources live under vyra-branding/wallpapers/ and vyra-branding/store/
+# (COPYed above). The Batch 01 hero (Vyra) stays the default wallpaper;
+# these are additional choices. The catalogue JSON is installed at
+# /usr/share/vyra/store/catalogue.json for the future Store app to read.
+RUN for spec in flow:Flow summit:Summit prism:Prism orbit:Orbit ring:Ring; do \
+        stem=${spec%%:*}; name=${spec##*:}; \
+        install -d -m 0755 /usr/share/wallpapers/Vyra-${name}/contents/images \
+            /usr/share/wallpapers/Vyra-${name}/contents/images_dark; \
+        for size in 3840x2160 1920x1080 3440x1440; do \
+            cp /usr/share/vyra/branding/wallpapers/${stem}-dark-${size}.png \
+                /usr/share/wallpapers/Vyra-${name}/contents/images_dark/${size}.png; \
+            cp /usr/share/vyra/branding/wallpapers/${stem}-light-${size}.png \
+                /usr/share/wallpapers/Vyra-${name}/contents/images/${size}.png; \
+        done; \
+        cp /usr/share/vyra/branding/wallpapers/${stem}-dark-1920x1080.png \
+            /usr/share/wallpapers/Vyra-${name}/contents/screenshot.png; \
+        cp /usr/share/vyra/branding/plasma/wallpapers/Vyra-${name}/metadata.json \
+            /usr/share/wallpapers/Vyra-${name}/metadata.json; \
+    done \
+    && install -d -m 0755 /usr/share/vyra/store \
+    && cp /usr/share/vyra/branding/store/catalogue.json /usr/share/vyra/store/catalogue.json \
+    && ls -d /usr/share/wallpapers/Vyra-* \
+    && test -s /usr/share/vyra/store/catalogue.json \
+    && echo 'wallpaper packages + store catalogue installed'
+
 # Phase B (Batch 01) — Plymouth boot splash: Vyra two-step theme.
 # The theme + default live in the CORE image so the payload's dracut regen
 # (configure_iso.sh) embeds them in the live initramfs. The logo is the D1
